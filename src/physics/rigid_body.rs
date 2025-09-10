@@ -1,4 +1,5 @@
 use crate::math::{Vec3, Quat, GRAVITY};
+use crate::physics::frames::FrameTransforms;
 use nalgebra as na;
 use serde::{Deserialize, Serialize};
 
@@ -21,20 +22,22 @@ impl RigidBodyState {
     }
 
     pub fn derivative(&self, forces: &Vec3, moments: &Vec3, mass: f64, inertia: &na::Matrix3<f64>) -> StateDerivative {
-        let gravity_force = Vec3::new(0.0, 0.0, GRAVITY * mass);
-        let total_force = *forces + gravity_force;
+        let gravity_inertial = Vec3::new(0.0, 0.0, GRAVITY * mass);
+        let gravity_body = FrameTransforms::transform_vector_inertial_to_body(&gravity_inertial, &self.orientation);
+        let total_force = *forces + gravity_body;
         
-        let acceleration = total_force * (1.0 / mass);
+        let acceleration_body = total_force * (1.0 / mass);
+        let acceleration_inertial = FrameTransforms::transform_vector_body_to_inertial(&acceleration_body, &self.orientation);
         
         let inertia_inv = inertia.try_inverse().unwrap_or(*inertia);
         let omega_body = self.angular_velocity;
         let omega_cross_I_omega = omega_body.cross(&Vec3::from_na(&(inertia.to_owned() * omega_body.to_na())));
         let angular_acceleration = Vec3::from_na(&(inertia_inv * (moments.to_na() - omega_cross_I_omega.to_na())));
         
-        let q_dot = self.orientation * Quat::new(0.0, omega_body.x * 0.5, omega_body.y * 0.5, omega_body.z * 0.5);
+        let q_dot = self.orientation.derivative(&omega_body);
         
         StateDerivative {
-            velocity: acceleration,
+            velocity: acceleration_inertial,
             position_dot: self.velocity,
             orientation_dot: q_dot,
             angular_velocity_dot: angular_acceleration,
