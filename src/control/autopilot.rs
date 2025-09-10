@@ -94,7 +94,7 @@ impl AutoPilot {
         dt: f64,
         outputs: &mut ControlOutputs,
     ) {
-        let base_thrust = 0.25;
+        let base_thrust = 0.667;
 
         if let Some(target_altitude) = target.altitude {
             let altitude_error = target_altitude - (-state.position.z);
