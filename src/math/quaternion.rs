@@ -112,6 +112,18 @@ impl std::ops::Mul for Quat {
     }
 }
 
+impl std::ops::Mul<f64> for Quat {
+    type Output = Self;
+    fn mul(self, scalar: f64) -> Self {
+        Self::new(
+            self.w * scalar,
+            self.x * scalar,
+            self.y * scalar,
+            self.z * scalar,
+        )
+    }
+}
+
 impl std::ops::Add for Quat {
     type Output = Self;
     fn add(self, other: Self) -> Self {
