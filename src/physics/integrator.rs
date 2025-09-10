@@ -22,15 +22,18 @@ impl RungeKutta4 {
     }
 
     fn add_state_derivative(state: &RigidBodyState, deriv: &StateDerivative, dt: f64) -> RigidBodyState {
+        let mut new_orientation = state.orientation + Quat::new(
+            deriv.orientation_dot.w * dt,
+            deriv.orientation_dot.x * dt,
+            deriv.orientation_dot.y * dt,
+            deriv.orientation_dot.z * dt,
+        );
+        new_orientation.renormalize();
+        
         RigidBodyState {
             position: state.position + deriv.position_dot * dt,
             velocity: state.velocity + deriv.velocity * dt,
-            orientation: (state.orientation + Quat::new(
-                deriv.orientation_dot.w * dt,
-                deriv.orientation_dot.x * dt,
-                deriv.orientation_dot.y * dt,
-                deriv.orientation_dot.z * dt,
-            )).normalize(),
+            orientation: new_orientation,
             angular_velocity: state.angular_velocity + deriv.angular_velocity_dot * dt,
         }
     }
