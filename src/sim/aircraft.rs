@@ -33,7 +33,7 @@ impl Aircraft {
     }
 
     pub fn update(&mut self, target: &ControlTarget, dt: f64) {
-        self.atmosphere = Atmosphere::at_altitude(self.state.position.z);
+        self.atmosphere = Atmosphere::at_altitude(-self.state.position.z);
         
         let airspeed = self.state.velocity.magnitude();
         let control_outputs = self.autopilot.update(&self.state, target, dt, airspeed);
@@ -77,14 +77,15 @@ impl Aircraft {
         
         for (i, mount) in self.config.vtol_props.iter().enumerate() {
             if i < controls.thrust_vtol.len() {
-                let thrust_magnitude = controls.thrust_vtol[i] * 500.0;
+                let thrust_per_motor = self.body.mass * 9.81 / 4.0;
+                let thrust_magnitude = controls.thrust_vtol[i] * thrust_per_motor * 1.5;
                 let thrust_vector = mount.direction * thrust_magnitude;
                 applied_forces.push((thrust_vector, mount.position));
             }
         }
         
         for mount in &self.config.cruise_props {
-            let thrust_magnitude = controls.thrust_cruise * 800.0;
+            let thrust_magnitude = controls.thrust_cruise * self.body.mass * 2.0;
             let thrust_vector = mount.direction * thrust_magnitude;
             applied_forces.push((thrust_vector, mount.position));
         }
@@ -94,9 +95,9 @@ impl Aircraft {
         let (force, moment) = self.body.compute_forces_and_moments(&self.state, &applied_forces);
         
         let additional_moment = total_forces.moment + Vec3::new(
-            controls.aileron * 100.0,
-            controls.elevator * 100.0,
-            controls.rudder * 50.0,
+            controls.aileron * 10.0,
+            controls.elevator * 10.0,
+            controls.rudder * 5.0,
         );
         
         (force, moment + additional_moment)
