@@ -69,6 +69,21 @@ impl Quat {
         Vec3::new(result.x, result.y, result.z)
     }
 
+    pub fn derivative(&self, omega_body: &Vec3) -> Self {
+        let omega_quat = Self::new(0.0, omega_body.x, omega_body.y, omega_body.z);
+        (*self * omega_quat) * 0.5
+    }
+
+    pub fn renormalize(&mut self) {
+        let mag = (self.w * self.w + self.x * self.x + self.y * self.y + self.z * self.z).sqrt();
+        if mag > 1e-10 {
+            self.w /= mag;
+            self.x /= mag;
+            self.y /= mag;
+            self.z /= mag;
+        }
+    }
+
     pub fn to_rotation_matrix(&self) -> na::Matrix3<f64> {
         let q = self.normalize();
         na::Matrix3::new(
