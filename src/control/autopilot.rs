@@ -40,13 +40,13 @@ pub struct AutoPilot {
 impl AutoPilot {
     pub fn new(n_vtol_motors: usize) -> Self {
         Self {
-            roll_pid: PidController::new(4.0, 0.1, 0.2).with_limits(10.0, 45.0),
-            pitch_pid: PidController::new(4.0, 0.1, 0.2).with_limits(10.0, 45.0),
-            yaw_pid: PidController::new(2.0, 0.05, 0.1).with_limits(5.0, 30.0),
-            altitude_pid: PidController::new(3.0, 0.5, 0.8).with_limits(50.0, 20.0),
-            velocity_pid: PidController::new(2.0, 0.2, 0.1).with_limits(10.0, 1.0),
-            position_pid_x: PidController::new(1.0, 0.1, 0.3).with_limits(5.0, 10.0),
-            position_pid_y: PidController::new(1.0, 0.1, 0.3).with_limits(5.0, 10.0),
+            roll_pid: PidController::new(0.5, 0.01, 0.1).with_limits(1.0, 0.5),
+            pitch_pid: PidController::new(0.5, 0.01, 0.1).with_limits(1.0, 0.5),
+            yaw_pid: PidController::new(0.3, 0.01, 0.05).with_limits(0.5, 0.3),
+            altitude_pid: PidController::new(0.8, 0.1, 0.3).with_limits(5.0, 0.5),
+            velocity_pid: PidController::new(0.5, 0.05, 0.1).with_limits(2.0, 0.5),
+            position_pid_x: PidController::new(0.3, 0.02, 0.1).with_limits(1.0, 0.3),
+            position_pid_y: PidController::new(0.3, 0.02, 0.1).with_limits(1.0, 0.3),
             n_vtol_motors,
             transition_airspeed: 15.0,
         }
@@ -97,8 +97,8 @@ impl AutoPilot {
         let base_thrust = 0.25;
 
         if let Some(target_altitude) = target.altitude {
-            let altitude_error = target_altitude - state.position.z;
-            let thrust_adjustment = self.altitude_pid.update(altitude_error, dt) / 100.0;
+            let altitude_error = target_altitude - (-state.position.z);
+            let thrust_adjustment = self.altitude_pid.update(altitude_error, dt);
             let total_thrust = (base_thrust + thrust_adjustment).clamp(0.0, 1.0);
 
             for i in 0..self.n_vtol_motors {
@@ -151,8 +151,8 @@ impl AutoPilot {
         outputs: &mut ControlOutputs,
     ) {
         if let Some(target_altitude) = target.altitude {
-            let altitude_error = target_altitude - state.position.z;
-            let thrust_adjustment = self.altitude_pid.update(altitude_error, dt) / 100.0;
+            let altitude_error = target_altitude - (-state.position.z);
+            let thrust_adjustment = self.altitude_pid.update(altitude_error, dt);
             
             let base_thrust = 0.25;
             let total_thrust = (base_thrust + thrust_adjustment).clamp(0.0, 1.0);
@@ -192,10 +192,10 @@ impl AutoPilot {
         yaw: f64,
     ) {
         if self.n_vtol_motors >= 4 {
-            outputs.thrust_vtol[0] = (throttle + roll + pitch + yaw).clamp(0.0, 1.0);
-            outputs.thrust_vtol[1] = (throttle - roll + pitch - yaw).clamp(0.0, 1.0);
-            outputs.thrust_vtol[2] = (throttle - roll - pitch + yaw).clamp(0.0, 1.0);
-            outputs.thrust_vtol[3] = (throttle + roll - pitch - yaw).clamp(0.0, 1.0);
+            outputs.thrust_vtol[0] = (throttle + roll * 0.1 + pitch * 0.1 + yaw * 0.05).clamp(0.0, 1.0);
+            outputs.thrust_vtol[1] = (throttle - roll * 0.1 + pitch * 0.1 - yaw * 0.05).clamp(0.0, 1.0);
+            outputs.thrust_vtol[2] = (throttle - roll * 0.1 - pitch * 0.1 + yaw * 0.05).clamp(0.0, 1.0);
+            outputs.thrust_vtol[3] = (throttle + roll * 0.1 - pitch * 0.1 - yaw * 0.05).clamp(0.0, 1.0);
 
             for i in 4..self.n_vtol_motors {
                 outputs.thrust_vtol[i] = throttle.clamp(0.0, 1.0);
