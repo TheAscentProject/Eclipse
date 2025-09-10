@@ -1,5 +1,6 @@
 use crate::math::Vec3;
-use crate::aero::{AeroForces, compute_dynamic_pressure};
+use crate::aero::{AeroForces, AirData, compute_dynamic_pressure};
+use crate::physics::frames::FrameTransforms;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,9 +124,23 @@ impl Wing {
         let cl_infinite = airfoil.cl0 + airfoil.cl_alpha * alpha;
         
         let e = 0.9;
-        let cl = cl_infinite * self.aspect_ratio / (self.aspect_ratio + 2.0 / e);
+        let cl_3d = cl_infinite * self.aspect_ratio / (self.aspect_ratio + 2.0 / e);
         
-        cl.min(airfoil.cl_max).max(-airfoil.cl_max)
+        self.apply_stall_model(cl_3d, alpha, airfoil.cl_max)
+    }
+    
+    fn apply_stall_model(&self, cl_linear: f64, alpha: f64, cl_max: f64) -> f64 {
+        let alpha_stall = cl_max / (2.0 * std::f64::consts::PI);
+        let transition_width = 0.1;
+        
+        if alpha.abs() < alpha_stall - transition_width {
+            cl_linear
+        } else if alpha.abs() > alpha_stall + transition_width {
+            cl_max * alpha.signum()
+        } else {
+            let blend = 0.5 * (1.0 + ((alpha.abs() - alpha_stall) / transition_width * std::f64::consts::PI).sin());
+            cl_linear * (1.0 - blend) + cl_max * alpha.signum() * blend
+        }
     }
 
     fn compute_cd(&self, alpha: f64, cl: f64) -> f64 {
