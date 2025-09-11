@@ -40,13 +40,13 @@ pub struct AutoPilot {
 impl AutoPilot {
     pub fn new(n_vtol_motors: usize) -> Self {
         Self {
-            roll_pid: PidController::new(0.5, 0.01, 0.1).with_limits(1.0, 0.5),
-            pitch_pid: PidController::new(0.5, 0.01, 0.1).with_limits(1.0, 0.5),
-            yaw_pid: PidController::new(0.3, 0.01, 0.05).with_limits(0.5, 0.3),
-            altitude_pid: PidController::new(0.8, 0.1, 0.3).with_limits(5.0, 0.5),
-            velocity_pid: PidController::new(0.5, 0.05, 0.1).with_limits(2.0, 0.5),
-            position_pid_x: PidController::new(0.3, 0.02, 0.1).with_limits(1.0, 0.3),
-            position_pid_y: PidController::new(0.3, 0.02, 0.1).with_limits(1.0, 0.3),
+            roll_pid: PidController::new(0.15, 0.002, 0.08).with_limits(0.3, 0.5),
+            pitch_pid: PidController::new(0.15, 0.002, 0.08).with_limits(0.3, 0.5),
+            yaw_pid: PidController::new(0.1, 0.001, 0.02).with_limits(0.2, 0.3),
+            altitude_pid: PidController::new(0.3, 0.02, 0.15).with_limits(1.5, 0.5),
+            velocity_pid: PidController::new(0.2, 0.01, 0.05).with_limits(1.0, 0.5),
+            position_pid_x: PidController::new(0.15, 0.005, 0.05).with_limits(0.5, 0.3),
+            position_pid_y: PidController::new(0.15, 0.005, 0.05).with_limits(0.5, 0.3),
             n_vtol_motors,
             transition_airspeed: 15.0,
         }
