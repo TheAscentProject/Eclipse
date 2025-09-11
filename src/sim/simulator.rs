@@ -31,7 +31,7 @@ impl Simulator {
         aircraft.set_initial_state(initial_pos, initial_vel);
         
         // Set initial target based on test type
-        let target = if sim_config.initial_altitude == 0.0 && sim_config.max_time > 200.0 {
+        let target = if sim_config.initial_altitude == 0.0 && sim_config.max_time >= 200.0 {
             // Takeoff test configuration
             ControlTarget::takeoff_to_altitude(400.0, 5.0)
         } else {
