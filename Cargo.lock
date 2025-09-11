@@ -1372,6 +1372,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "nalgebra",
+ "rand",
  "serde",
  "serde_json",
 ]

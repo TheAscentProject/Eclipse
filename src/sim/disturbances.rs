@@ -52,7 +52,7 @@ impl DisturbanceModel {
         roll += self.gaussian_noise() * self.attitude_noise_std;
         pitch += self.gaussian_noise() * self.attitude_noise_std;
         yaw += self.gaussian_noise() * self.attitude_noise_std;
-        noisy_state.orientation = crate::math::Quaternion::from_euler(roll, pitch, yaw);
+        noisy_state.orientation = crate::math::Quat::from_euler(roll, pitch, yaw);
         
         noisy_state
     }
