@@ -99,8 +99,8 @@ impl Simulator {
             }
         }
 
-        if telemetry.altitude < -10.0 {
-            println!("Simulation stopped: Aircraft crashed (altitude < -10m)");
+        if telemetry.altitude > 10.0 {
+            println!("Simulation stopped: Aircraft crashed (altitude > 10m below ground)");
             self.running = false;
             return false;
         }
