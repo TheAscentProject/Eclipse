@@ -38,7 +38,7 @@ impl Aircraft {
             state: RigidBodyState::new(),
             autopilot,
             atmosphere: Atmosphere::sea_level(),
-            disturbances: DisturbanceModel::new().with_wind(Vec3::new(0.5, 0.3, 0.0), 1.5),
+            disturbances: DisturbanceModel::new().with_wind(Vec3::new(0.0, 0.0, 0.0), 0.0),
             last_forces: ForcesTelemetry::default(),
         }
     }
