@@ -43,7 +43,7 @@ impl AutoPilot {
             pitch_pid: PidController::new(0.15, 0.002, 0.08).with_limits(0.3, 0.5),
             yaw_pid: PidController::new(0.1, 0.001, 0.02).with_limits(0.2, 0.3),
             altitude_pid: PidController::new(0.3, 0.02, 0.15).with_limits(1.5, 0.5),
-            climb_rate_pid: PidController::new(0.15, 0.02, 0.05).with_limits(2.0, 0.5),
+            climb_rate_pid: PidController::new(0.3, 0.05, 0.1).with_limits(4.0, 0.8),
             position_pid_x: PidController::new(0.15, 0.005, 0.05).with_limits(0.5, 0.3),
             position_pid_y: PidController::new(0.15, 0.005, 0.05).with_limits(0.5, 0.3),
             n_vtol_motors,
