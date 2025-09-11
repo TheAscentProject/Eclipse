@@ -39,9 +39,9 @@ pub struct AutoPilot {
 impl AutoPilot {
     pub fn new(n_vtol_motors: usize) -> Self {
         Self {
-            roll_pid: PidController::new(0.15, 0.002, 0.08).with_limits(0.3, 0.5),
-            pitch_pid: PidController::new(0.15, 0.002, 0.08).with_limits(0.3, 0.5),
-            yaw_pid: PidController::new(0.1, 0.001, 0.02).with_limits(0.2, 0.3),
+            roll_pid: PidController::new(0.4, 0.005, 0.15).with_limits(1.0, 1.5),
+            pitch_pid: PidController::new(0.4, 0.005, 0.15).with_limits(1.0, 1.5),
+            yaw_pid: PidController::new(0.3, 0.002, 0.08).with_limits(0.5, 0.8),
             altitude_pid: PidController::new(0.3, 0.02, 0.15).with_limits(1.5, 0.5),
             climb_rate_pid: PidController::new(0.3, 0.05, 0.1).with_limits(4.0, 0.8),
             position_pid_x: PidController::new(0.15, 0.005, 0.05).with_limits(0.5, 0.3),
@@ -193,18 +193,21 @@ impl AutoPilot {
         outputs: &mut ControlOutputs,
     ) {
         let (roll, pitch, yaw) = state.orientation.to_euler();
-        
-        // Phase 1: Stabilize attitude first (hold level for 2 seconds)
-        let attitude_stable = roll.abs() < 0.1 && pitch.abs() < 0.1; // ~6 degrees
         let current_climb_rate = -state.velocity.z;
         
-        let base_thrust = if !attitude_stable && current_climb_rate < 1.0 {
-            // Stabilization phase - focus on attitude control only
+        // Always prioritize attitude stabilization in takeoff mode
+        // Only transition to climb when attitude is reasonably stable AND we're not falling
+        let attitude_stable = roll.abs() < 0.3 && pitch.abs() < 0.3 && current_climb_rate > -1.0; // ~17 degrees, not falling
+        
+        let base_thrust = if !attitude_stable {
+            // Emergency stabilization - consistent strong hover thrust
             println!("TAKEOFF PHASE 1: Stabilizing attitude - roll={:.1}° pitch={:.1}°", 
                 roll.to_degrees(), pitch.to_degrees());
-            0.667 // Just enough to maintain altitude
+            
+            // Consistent high thrust to maintain control authority
+            1.0 // Strong stable thrust for attitude recovery
         } else {
-            // Climb phase - attitude is stable, now focus on climb
+            // Attitude is stable, begin controlled climb
             let target_climb_rate = if let Some(vel) = target.velocity {
                 -vel.z
             } else {
@@ -214,8 +217,7 @@ impl AutoPilot {
             let climb_rate_error = target_climb_rate - current_climb_rate;
             let climb_thrust_adjust = self.climb_rate_pid.update(climb_rate_error, dt);
             
-            // Increased range to prevent saturation  
-            let thrust = (0.667 + climb_thrust_adjust).clamp(0.4, 2.5);
+            let thrust = (0.8 + climb_thrust_adjust).clamp(0.6, 2.5);
             
             println!("TAKEOFF PHASE 2: Climbing - rate={:.2}m/s target={:.2}m/s error={:.2} adj={:.3} thrust={:.3}", 
                 current_climb_rate, target_climb_rate, climb_rate_error, climb_thrust_adjust, thrust);
@@ -223,20 +225,20 @@ impl AutoPilot {
             thrust
         };
         
-        // Strong attitude stabilization during takeoff
+        // Maximum attitude control authority during takeoff
         let roll_output = self.roll_pid.update(-roll, dt);
         let pitch_output = self.pitch_pid.update(-pitch, dt);
         let yaw_output = self.yaw_pid.update(-yaw, dt);
         
-        // Reduce horizontal velocity if getting too fast
+        // Aggressive horizontal velocity damping during takeoff
         let horizontal_speed = (state.velocity.x.powi(2) + state.velocity.y.powi(2)).sqrt();
-        let pitch_correction = if horizontal_speed > 3.0 {
-            (horizontal_speed - 3.0) * 0.02
+        let pitch_correction = if horizontal_speed > 2.0 {
+            (horizontal_speed - 2.0) * 0.05
         } else {
             0.0
         };
         
-        // Mix with stronger attitude control authority
+        // Apply full attitude corrections
         self.mix_multirotor_controls(outputs, base_thrust, roll_output, pitch_output - pitch_correction, yaw_output);
     }
 
@@ -249,13 +251,19 @@ impl AutoPilot {
         yaw: f64,
     ) {
         if self.n_vtol_motors >= 4 {
-            outputs.thrust_vtol[0] = (throttle + roll * 0.1 + pitch * 0.1 + yaw * 0.05).clamp(0.0, 2.0);
-            outputs.thrust_vtol[1] = (throttle - roll * 0.1 + pitch * 0.1 - yaw * 0.05).clamp(0.0, 2.0);
-            outputs.thrust_vtol[2] = (throttle - roll * 0.1 - pitch * 0.1 + yaw * 0.05).clamp(0.0, 2.0);
-            outputs.thrust_vtol[3] = (throttle + roll * 0.1 - pitch * 0.1 - yaw * 0.05).clamp(0.0, 2.0);
+            // Moderate attitude control mixing to prevent oscillations
+            let roll_mix = roll.clamp(-0.5, 0.5) * 0.3;
+            let pitch_mix = pitch.clamp(-0.5, 0.5) * 0.3;
+            let yaw_mix = yaw.clamp(-0.3, 0.3) * 0.15;
+            
+            // Ensure minimum thrust to prevent motor shutdown
+            outputs.thrust_vtol[0] = (throttle + roll_mix + pitch_mix + yaw_mix).clamp(0.1, 2.5);
+            outputs.thrust_vtol[1] = (throttle - roll_mix + pitch_mix - yaw_mix).clamp(0.1, 2.5);
+            outputs.thrust_vtol[2] = (throttle - roll_mix - pitch_mix + yaw_mix).clamp(0.1, 2.5);
+            outputs.thrust_vtol[3] = (throttle + roll_mix - pitch_mix - yaw_mix).clamp(0.1, 2.5);
 
             for i in 4..self.n_vtol_motors {
-                outputs.thrust_vtol[i] = throttle.clamp(0.0, 2.0);
+                outputs.thrust_vtol[i] = throttle.clamp(0.1, 2.5);
             }
         }
     }
