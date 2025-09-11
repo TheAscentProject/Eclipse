@@ -30,7 +30,8 @@ impl Aircraft {
     pub fn new(config: AircraftConfig) -> Self {
         let body = config.to_rigid_body();
         let n_vtol_motors = config.vtol_props.len();
-        let autopilot = AutoPilot::new(n_vtol_motors);
+        let n_cruise_motors = config.cruise_props.len();
+        let autopilot = AutoPilotV2::new(n_vtol_motors, n_cruise_motors);
         
         Self {
             config,

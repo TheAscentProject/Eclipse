@@ -153,49 +153,49 @@ impl AutoPilotV2 {
         self.roll_pid.kp = gains.roll.kp;
         self.roll_pid.ki = gains.roll.ki;
         self.roll_pid.kd = gains.roll.kd;
-        self.roll_pid.max_output = gains.roll.max_output;
-        self.roll_pid.max_integral = gains.roll.max_integral;
+        self.roll_pid.output_limit = gains.roll.max_output;
+        self.roll_pid.integral_limit = gains.roll.max_integral;
         
         // Update pitch controller
         self.pitch_pid.kp = gains.pitch.kp;
         self.pitch_pid.ki = gains.pitch.ki;
         self.pitch_pid.kd = gains.pitch.kd;
-        self.pitch_pid.max_output = gains.pitch.max_output;
-        self.pitch_pid.max_integral = gains.pitch.max_integral;
+        self.pitch_pid.output_limit = gains.pitch.max_output;
+        self.pitch_pid.integral_limit = gains.pitch.max_integral;
         
         // Update yaw controller
         self.yaw_pid.kp = gains.yaw.kp;
         self.yaw_pid.ki = gains.yaw.ki;
         self.yaw_pid.kd = gains.yaw.kd;
-        self.yaw_pid.max_output = gains.yaw.max_output;
-        self.yaw_pid.max_integral = gains.yaw.max_integral;
+        self.yaw_pid.output_limit = gains.yaw.max_output;
+        self.yaw_pid.integral_limit = gains.yaw.max_integral;
         
         // Update altitude controller
         self.altitude_pid.kp = gains.altitude.kp;
         self.altitude_pid.ki = gains.altitude.ki;
         self.altitude_pid.kd = gains.altitude.kd;
-        self.altitude_pid.max_output = gains.altitude.max_output;
-        self.altitude_pid.max_integral = gains.altitude.max_integral;
+        self.altitude_pid.output_limit = gains.altitude.max_output;
+        self.altitude_pid.integral_limit = gains.altitude.max_integral;
         
         // Update climb rate controller
         self.climb_rate_pid.kp = gains.climb_rate.kp;
         self.climb_rate_pid.ki = gains.climb_rate.ki;
         self.climb_rate_pid.kd = gains.climb_rate.kd;
-        self.climb_rate_pid.max_output = gains.climb_rate.max_output;
-        self.climb_rate_pid.max_integral = gains.climb_rate.max_integral;
+        self.climb_rate_pid.output_limit = gains.climb_rate.max_output;
+        self.climb_rate_pid.integral_limit = gains.climb_rate.max_integral;
         
         // Update position controllers
         self.position_pid_x.kp = gains.position_x.kp;
         self.position_pid_x.ki = gains.position_x.ki;
         self.position_pid_x.kd = gains.position_x.kd;
-        self.position_pid_x.max_output = gains.position_x.max_output;
-        self.position_pid_x.max_integral = gains.position_x.max_integral;
+        self.position_pid_x.output_limit = gains.position_x.max_output;
+        self.position_pid_x.integral_limit = gains.position_x.max_integral;
         
         self.position_pid_y.kp = gains.position_y.kp;
         self.position_pid_y.ki = gains.position_y.ki;
         self.position_pid_y.kd = gains.position_y.kd;
-        self.position_pid_y.max_output = gains.position_y.max_output;
-        self.position_pid_y.max_integral = gains.position_y.max_integral;
+        self.position_pid_y.output_limit = gains.position_y.max_output;
+        self.position_pid_y.integral_limit = gains.position_y.max_integral;
     }
     
     /// Calculate attitude control demands
