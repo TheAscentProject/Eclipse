@@ -30,7 +30,13 @@ impl Simulator {
         
         aircraft.set_initial_state(initial_pos, initial_vel);
         
-        let target = ControlTarget::hover_at_altitude(sim_config.initial_altitude);
+        // Set initial target based on test type
+        let target = if sim_config.initial_altitude == 0.0 && sim_config.max_time > 200.0 {
+            // Takeoff test configuration
+            ControlTarget::takeoff_to_altitude(400.0, 5.0)
+        } else {
+            ControlTarget::hover_at_altitude(sim_config.initial_altitude)
+        };
         
         Self {
             aircraft,
@@ -64,6 +70,17 @@ impl Simulator {
             None
         };
 
+        // Check for mode transitions
+        if self.target.mode == crate::control::FlightMode::Takeoff {
+            let current_altitude = -self.aircraft.state.position.z;
+            if let Some(target_altitude) = self.target.altitude {
+                if current_altitude >= target_altitude - 5.0 {
+                    println!("Reached target altitude, switching to hover mode");
+                    self.target = ControlTarget::hover_at_altitude(target_altitude);
+                }
+            }
+        }
+        
         self.aircraft.update(&self.target, self.config.dt);
         self.time += self.config.dt;
         
