@@ -192,38 +192,52 @@ impl AutoPilot {
         dt: f64,
         outputs: &mut ControlOutputs,
     ) {
+        let (roll, pitch, yaw) = state.orientation.to_euler();
+        
+        // Phase 1: Stabilize attitude first (hold level for 2 seconds)
+        let attitude_stable = roll.abs() < 0.1 && pitch.abs() < 0.1; // ~6 degrees
         let current_climb_rate = -state.velocity.z;
         
-        let target_climb_rate = if let Some(vel) = target.velocity {
-            -vel.z
+        let base_thrust = if !attitude_stable && current_climb_rate < 1.0 {
+            // Stabilization phase - focus on attitude control only
+            println!("TAKEOFF PHASE 1: Stabilizing attitude - roll={:.1}° pitch={:.1}°", 
+                roll.to_degrees(), pitch.to_degrees());
+            0.667 // Just enough to maintain altitude
         } else {
-            5.0
+            // Climb phase - attitude is stable, now focus on climb
+            let target_climb_rate = if let Some(vel) = target.velocity {
+                -vel.z
+            } else {
+                5.0
+            };
+            
+            let climb_rate_error = target_climb_rate - current_climb_rate;
+            let climb_thrust_adjust = self.climb_rate_pid.update(climb_rate_error, dt);
+            
+            // Increased range to prevent saturation  
+            let thrust = (0.667 + climb_thrust_adjust).clamp(0.4, 2.5);
+            
+            println!("TAKEOFF PHASE 2: Climbing - rate={:.2}m/s target={:.2}m/s error={:.2} adj={:.3} thrust={:.3}", 
+                current_climb_rate, target_climb_rate, climb_rate_error, climb_thrust_adjust, thrust);
+            
+            thrust
         };
         
-        let climb_rate_error = target_climb_rate - current_climb_rate;
-        let climb_thrust_adjust = self.climb_rate_pid.update(climb_rate_error, dt);
-        
-        // Base thrust for hover is 0.667, add more for climb
-        let base_thrust = (1.0 + climb_thrust_adjust).clamp(0.667, 2.0);
-        
-        println!("TAKEOFF: climb_rate={:.2}m/s target={:.2}m/s error={:.2} thrust_adj={:.3} base_thrust={:.3}", 
-            current_climb_rate, target_climb_rate, climb_rate_error, climb_thrust_adjust, base_thrust);
-        
-        // Attitude stabilization - keep level during climb
-        let (roll, pitch, _) = state.orientation.to_euler();
+        // Strong attitude stabilization during takeoff
         let roll_output = self.roll_pid.update(-roll, dt);
         let pitch_output = self.pitch_pid.update(-pitch, dt);
+        let yaw_output = self.yaw_pid.update(-yaw, dt);
         
         // Reduce horizontal velocity if getting too fast
         let horizontal_speed = (state.velocity.x.powi(2) + state.velocity.y.powi(2)).sqrt();
-        let pitch_correction = if horizontal_speed > 2.0 {
-            (horizontal_speed - 2.0) * 0.01
+        let pitch_correction = if horizontal_speed > 3.0 {
+            (horizontal_speed - 3.0) * 0.02
         } else {
             0.0
         };
         
-        // Mix attitude corrections with base thrust
-        self.mix_multirotor_controls(outputs, base_thrust, roll_output, pitch_output - pitch_correction, 0.0);
+        // Mix with stronger attitude control authority
+        self.mix_multirotor_controls(outputs, base_thrust, roll_output, pitch_output - pitch_correction, yaw_output);
     }
 
     fn mix_multirotor_controls(
