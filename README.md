@@ -1,96 +1,203 @@
 # Eclipse Flight Dynamics Simulator
 
-A six degree-of-freedom flight dynamics simulator for hybrid vertical takeoff and landing (VTOL) aircraft, implementing quaternion-based attitude dynamics and multi-mode flight control systems.
+A modular six degree-of-freedom flight dynamics simulator for hybrid vertical takeoff and landing (VTOL) aircraft, implementing hierarchical flight control with gain scheduling and smooth mode transitions.
 
-<img width="1024" height="1024" alt="0_1" src="https://github.com/user-attachments/assets/18a49973-654c-4258-aa35-5f2276ae7203" />
+## Project Status
 
-## Why the Name Eclipse
+**Current Phase: Control System Architecture Complete**
 
-Eclipse represents the transitional moment between two states - much like hybrid VTOL aircraft eclipse the boundary between rotorcraft and fixed-wing flight. As a component of the [Ascent Project](https://theascentproject.info), Eclipse provides the computational foundation for understanding these liminal flight regimes where vertical lift gradually yields to aerodynamic surfaces, creating a brief eclipse of pure flight modes.
+The simulator has a fully implemented modular architecture with advanced flight control systems. The physics engine is stable and validated. Control gains require further tuning for stable flight across all regimes.
 
-## Abstract
+### Working Components
+- Complete 6-DOF rigid body dynamics with quaternion attitude representation
+- Runge-Kutta 4 numerical integration (stable, no NaN propagation)
+- Modular aerodynamics (wing theory, propeller models, atmosphere)
+- Hierarchical control system with gain scheduling
+- Control allocation matrix for mixed VTOL/cruise propulsion
+- Smooth transition management between flight modes
+- CSV telemetry export with organized flight logs
 
-This repository contains a flight dynamics simulator designed for the analysis of hybrid VTOL aircraft configurations. The implementation employs quaternion kinematics to avoid gimbal lock singularities, fourth-order Runge-Kutta integration for numerical stability, and properly transformed coordinate frames following aerospace conventions (NED). The simulator has been validated to maintain numerical stability over extended simulation periods without accumulation of integration errors.
+### In Development
+- Control gain tuning for stable hover and transition
+- Extended flight envelope testing
+- Wind and turbulence models
+- Battery and power consumption tracking
 
-## Technical Implementation
+## Architecture
 
-### Mathematical Framework
-
-The simulator solves the Newton-Euler equations for rigid body dynamics:
+The simulator implements a professional VTOL control architecture:
 
 ```
-F = ma (translational)
-M = Iω̇ + ω × (Iω) (rotational)
+High Level: Flight Mode Manager (hover, transition, cruise)
+    ↓
+Mid Level:  Gain Scheduling (airspeed-based PID adaptation)
+    ↓
+Low Level:  Control Allocation (optimal actuator distribution)
+    ↓
+Hardware:   Motor Commands (VTOL fans + cruise propellers)
 ```
 
-Quaternion kinematics are implemented following Diebel (2006):
-```
-q̇ = ½q ⊗ ω_q
-```
+### Key Systems
 
-Where renormalization is applied after each integration step to maintain unit norm.
+**Gain Scheduling** (`control/gain_schedule.rs`)
+- Separate PID gains for hover, transition, and cruise regimes
+- Smooth interpolation based on airspeed
+- Prevents control discontinuities during mode changes
 
-### Aerodynamic Modeling
+**Control Allocation** (`control/control_allocation.rs`)
+- Maps desired forces/moments to actuator commands
+- Handles over/under-actuated configurations
+- Optimal distribution via pseudo-inverse
 
-Wing aerodynamics employ finite-wing corrections to infinite-wing theory:
-```
-C_L = C_L_∞ · AR/(AR + 2/e)
-C_D = C_D_0 + C_L²/(πeAR)
-```
+**Transition Manager** (`control/transition_manager.rs`)
+- State machine for flight mode transitions
+- Automatic mode switching based on conditions
+- Smooth blending factors for propulsion systems
 
-A continuous stall model prevents numerical discontinuities through smooth blending near stall angles.
+## Running Instructions
 
-### Control System Architecture
-
-The control system implements cascaded PID loops with anti-windup protection:
-- Inner loop: Angular rate control (200 Hz)
-- Middle loop: Attitude stabilization (100 Hz)  
-- Outer loop: Position/altitude hold (50 Hz)
-
-Back-calculation anti-windup prevents integrator saturation during actuator limiting.
-
-### Numerical Methods
-
-Integration employs the classical RK4 scheme with adaptive quaternion normalization. All force summations occur in the body-fixed frame to maintain consistency, with appropriate transformations applied for inertial and wind-frame quantities.
-
-## Validation Results
-
-Following correction of coordinate frame conventions and control gain tuning:
-
-- Position drift: < 0.01 m over 60 second hover
-- Altitude regulation: ± 0.1 m steady-state error
-- Attitude stability: < 0.1° oscillation amplitude
-- Numerical stability: No NaN propagation over 10⁶ timesteps
-
-## Build and Execution
+### Basic Commands
 
 ```bash
-# Standard debug build with assertions
-cargo build
-
-# Optimized build for performance analysis
+# Build the simulator (optimized)
 cargo build --release
 
-# Execute hover stability test
-cargo run --release
+# Run hover test at 5m altitude
+cargo run --release -- --hover
 
-# Alternative aircraft configuration
-cargo run --release -- tiltrotor
+# Run takeoff to 400m altitude
+cargo run --release -- --takeoff
+
+# Use tiltrotor configuration
+cargo run --release -- --tiltrotor --hover
+
+# Help and options
+cargo run --release -- --help
 ```
+
+### Flight Modes
+
+- `--hover`: Maintain stable position at 5m altitude (default)
+- `--takeoff`: Climb from ground to 400m altitude
+- `--tiltrotor`: Use tiltrotor aircraft instead of lift+cruise configuration
+
+### Output
+
+Flight data is automatically saved to timestamped CSV files:
+- Hover flights: `flights/hover/flight_[timestamp].csv`
+- Takeoff flights: `flights/takeoff/flight_[timestamp].csv`
+
+Each CSV contains:
+- Time, position (x,y,z), velocity (vx,vy,vz)
+- Attitude (roll,pitch,yaw), angular rates (wx,wy,wz)
+- Airspeed, altitude, control outputs
 
 ## Repository Structure
 
 ```
 src/
-├── math/          Vector and quaternion operations
-├── physics/       Rigid body dynamics and integration
-├── aero/          Aerodynamic force and moment computation
-├── control/       Flight control system implementation
-├── prop/          Propulsion system models
-└── sim/           Simulation executive and data logging
+├── math/               # Vector3, Quaternion, coordinate transforms
+├── physics/            # 6-DOF dynamics, RK4 integration
+├── aero/              # Wing/propeller models, atmosphere
+├── control/           # Control system modules
+│   ├── pid.rs         # PID controller with anti-windup
+│   ├── flight_mode.rs # Flight mode definitions
+│   ├── gain_schedule.rs    # Airspeed-based gain scheduling
+│   ├── control_allocation.rs # Actuator allocation matrix
+│   ├── transition_manager.rs # Mode transition logic
+│   ├── autopilot_v2.rs     # Main autopilot implementation
+│   └── autopilot.rs   # Legacy autopilot (deprecated)
+├── config/            # Aircraft and simulation configs
+└── sim/               # Simulation engine, telemetry
 ```
 
-## References
+## Aircraft Configurations
+
+### Lift+Cruise (Default)
+- 4 vertical lift fans for VTOL operations
+- 1 forward propeller for cruise flight
+- Blown wing for enhanced low-speed lift
+- Optimal for efficiency in forward flight
+
+### Tiltrotor
+- 4 tiltable propellers
+- Transition from vertical to horizontal thrust
+- Shared propulsion for all flight modes
+- Higher mechanical complexity
+
+## Technical Implementation
+
+### Physics Engine
+- Newton-Euler rigid body equations
+- Quaternion kinematics (no gimbal lock)
+- Body-fixed reference frame with NED convention
+- Forces computed and summed in body frame
+
+### Aerodynamics
+- Finite wing corrections with aspect ratio effects
+- Continuous stall model for smooth transitions
+- Propeller momentum theory for hover
+- Blade element theory for forward flight
+
+### Control Philosophy
+- Single coherent control system with mode adaptation
+- No hard switching between control laws
+- Gain scheduling provides smooth parameter variation
+- Control allocation handles actuator redundancy
+
+## Known Issues
+
+1. **Control Instability**: Current PID gains cause oscillations in hover mode. The control architecture is correct but requires parameter tuning.
+
+2. **Thrust Scaling**: Base thrust values may not match aircraft mass correctly, leading to inadequate lift.
+
+3. **Visualization**: Bevy-based 3D visualization has API compatibility issues with current version.
+
+## Development Roadmap
+
+Near term:
+- Systematic gain tuning using frequency domain analysis
+- Implement auto-tuning for PID parameters
+- Add wind disturbance models
+- Create automated test scenarios
+
+Long term:
+- Linear Quadratic Regulator (LQR) control
+- Model Predictive Control (MPC) for transitions
+- Hardware-in-the-loop simulation support
+- Multi-vehicle coordination
+
+## Building from Source
+
+Requirements:
+- Rust 1.70 or later
+- No additional system dependencies for core simulator
+
+```bash
+# Clone repository
+git clone https://github.com/yourusername/eclipse
+cd eclipse
+
+# Run tests
+cargo test
+
+# Build with optimizations
+cargo build --release
+
+# Run with debug output
+RUST_LOG=debug cargo run
+```
+
+## Contributing
+
+The project follows a modular architecture where each system has a single responsibility. When contributing:
+
+1. Maintain clean separation between physics, aerodynamics, and control
+2. Use proper aerospace conventions (NED frame, quaternion normalization)
+3. Add unit tests for mathematical functions
+4. Document control parameters and their effects
+
+## References 
 
 - Stevens, B. L., Lewis, F. L., & Johnson, E. N. (2015). Aircraft Control and Simulation (3rd ed.)
 - Diebel, J. (2006). Representing Attitude: Euler Angles, Unit Quaternions, and Rotation Vectors
