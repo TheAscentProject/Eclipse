@@ -118,11 +118,6 @@ impl Aircraft {
                 let thrust_vector = mount.direction * thrust_magnitude;
                 applied_forces.push((thrust_vector, mount.position));
                 
-                if i == 0 && self.state.position.z.abs() < 2.0 {
-                    println!("  Motor[{}]: cmd={:.3} thrust={:.1}N direction=({:.1},{:.1},{:.1})", 
-                        i, controls.thrust_vtol[i], thrust_magnitude, 
-                        mount.direction.x, mount.direction.y, mount.direction.z);
-                }
             }
         }
         
@@ -154,10 +149,6 @@ impl Aircraft {
         self.last_forces.total_moment = moment;
         self.last_forces.gravity_force = Vec3::new(0.0, 0.0, self.body.mass * 9.81);
         
-        if self.state.position.z.abs() < 2.0 {
-            println!("  Total Force: ({:.1},{:.1},{:.1})N  Gravity: {:.1}N  Net_Z: {:.1}N", 
-                force.x, force.y, force.z, self.body.mass * 9.81, force.z + self.body.mass * 9.81);
-        }
         
         let additional_moment = total_forces.moment + Vec3::new(
             controls.aileron * 10.0,
