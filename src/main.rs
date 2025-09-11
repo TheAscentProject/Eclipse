@@ -80,12 +80,12 @@ fn main() {
     let mut simulator = Simulator::new(aircraft_config, sim_config);
     simulator.run();
     
-    // Generate timestamped filename with flight mode
+    // Generate timestamped filename with flight mode and save to appropriate directory
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_else(|_| std::time::Duration::from_secs(0))
         .as_secs();
-    let filename = format!("{}_flight_{}.csv", flight_mode.name().to_lowercase(), timestamp);
+    let filename = format!("flights/{}/flight_{}.csv", flight_mode.name().to_lowercase(), timestamp);
     
     if let Err(e) = simulator.export_telemetry(&filename) {
         eprintln!("Failed to export telemetry: {}", e);
