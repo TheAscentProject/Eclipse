@@ -37,4 +37,15 @@ impl ControlTarget {
         }
     }
 
+    pub fn takeoff_to_altitude(target_altitude: f64, climb_rate: f64) -> Self {
+        Self {
+            mode: FlightMode::Takeoff,
+            position: None,
+            velocity: Some(Vec3::new(0.0, 0.0, -climb_rate)), // Negative for up in NED
+            attitude: Some((0.0, 0.0, 0.0)),
+            thrust: None,
+            altitude: Some(target_altitude),
+            yaw: Some(0.0),
+        }
+    }
 }
