@@ -103,8 +103,8 @@ impl Aircraft {
         
         for (i, mount) in self.config.vtol_props.iter().enumerate() {
             if i < controls.thrust_vtol.len() {
-                let thrust_per_motor = self.body.mass * 9.81 / 4.0;
-                let thrust_magnitude = controls.thrust_vtol[i] * thrust_per_motor * 1.5;
+                let thrust_per_motor = self.body.mass * 9.81 / self.config.vtol_props.len() as f64;
+                let thrust_magnitude = controls.thrust_vtol[i] * thrust_per_motor;
                 
                 let rpm = 2000.0 + controls.thrust_vtol[i] * 1000.0;
                 let _prop_thrust = mount.propeller.compute_thrust(
@@ -117,11 +117,17 @@ impl Aircraft {
                 
                 let thrust_vector = mount.direction * thrust_magnitude;
                 applied_forces.push((thrust_vector, mount.position));
+                
+                if i == 0 && self.state.position.z.abs() < 2.0 {
+                    println!("  Motor[{}]: cmd={:.3} thrust={:.1}N direction=({:.1},{:.1},{:.1})", 
+                        i, controls.thrust_vtol[i], thrust_magnitude, 
+                        mount.direction.x, mount.direction.y, mount.direction.z);
+                }
             }
         }
         
         for mount in &self.config.cruise_props {
-            let thrust_magnitude = controls.thrust_cruise * self.body.mass * 2.0;
+            let thrust_magnitude = controls.thrust_cruise * self.body.mass * 9.81;
             
             let rpm = 1500.0 + controls.thrust_cruise * 2000.0;
             let _prop_thrust = mount.propeller.compute_thrust(
@@ -147,6 +153,11 @@ impl Aircraft {
         self.last_forces.total_force = force;
         self.last_forces.total_moment = moment;
         self.last_forces.gravity_force = Vec3::new(0.0, 0.0, self.body.mass * 9.81);
+        
+        if self.state.position.z.abs() < 2.0 {
+            println!("  Total Force: ({:.1},{:.1},{:.1})N  Gravity: {:.1}N  Net_Z: {:.1}N", 
+                force.x, force.y, force.z, self.body.mass * 9.81, force.z + self.body.mass * 9.81);
+        }
         
         let additional_moment = total_forces.moment + Vec3::new(
             controls.aileron * 10.0,
