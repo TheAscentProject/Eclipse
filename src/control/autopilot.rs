@@ -43,7 +43,7 @@ impl AutoPilot {
             pitch_pid: PidController::new(0.15, 0.002, 0.08).with_limits(0.3, 0.5),
             yaw_pid: PidController::new(0.1, 0.001, 0.02).with_limits(0.2, 0.3),
             altitude_pid: PidController::new(0.3, 0.02, 0.15).with_limits(1.5, 0.5),
-            climb_rate_pid: PidController::new(0.15, 0.02, 0.05).with_limits(0.2, 0.2),
+            climb_rate_pid: PidController::new(0.15, 0.02, 0.05).with_limits(2.0, 0.5),
             position_pid_x: PidController::new(0.15, 0.005, 0.05).with_limits(0.5, 0.3),
             position_pid_y: PidController::new(0.15, 0.005, 0.05).with_limits(0.5, 0.3),
             n_vtol_motors,
@@ -203,13 +203,11 @@ impl AutoPilot {
         let climb_rate_error = target_climb_rate - current_climb_rate;
         let climb_thrust_adjust = self.climb_rate_pid.update(climb_rate_error, dt);
         
-        // Base thrust slightly above hover to maintain climb
-        let base_thrust = 0.68 + climb_thrust_adjust;
+        // Base thrust for hover is 0.667, add more for climb
+        let base_thrust = (1.0 + climb_thrust_adjust).clamp(0.667, 2.0);
         
-        // Apply base thrust to all motors
-        for i in 0..self.n_vtol_motors {
-            outputs.thrust_vtol[i] = base_thrust.clamp(0.6, 0.75);
-        }
+        println!("TAKEOFF: climb_rate={:.2}m/s target={:.2}m/s error={:.2} thrust_adj={:.3} base_thrust={:.3}", 
+            current_climb_rate, target_climb_rate, climb_rate_error, climb_thrust_adjust, base_thrust);
         
         // Attitude stabilization - keep level during climb
         let (roll, pitch, _) = state.orientation.to_euler();
@@ -224,8 +222,8 @@ impl AutoPilot {
             0.0
         };
         
-        // Mix in attitude corrections
-        self.mix_multirotor_controls(outputs, 0.0, roll_output, pitch_output - pitch_correction, 0.0);
+        // Mix attitude corrections with base thrust
+        self.mix_multirotor_controls(outputs, base_thrust, roll_output, pitch_output - pitch_correction, 0.0);
     }
 
     fn mix_multirotor_controls(
@@ -237,13 +235,13 @@ impl AutoPilot {
         yaw: f64,
     ) {
         if self.n_vtol_motors >= 4 {
-            outputs.thrust_vtol[0] = (throttle + roll * 0.1 + pitch * 0.1 + yaw * 0.05).clamp(0.0, 1.0);
-            outputs.thrust_vtol[1] = (throttle - roll * 0.1 + pitch * 0.1 - yaw * 0.05).clamp(0.0, 1.0);
-            outputs.thrust_vtol[2] = (throttle - roll * 0.1 - pitch * 0.1 + yaw * 0.05).clamp(0.0, 1.0);
-            outputs.thrust_vtol[3] = (throttle + roll * 0.1 - pitch * 0.1 - yaw * 0.05).clamp(0.0, 1.0);
+            outputs.thrust_vtol[0] = (throttle + roll * 0.1 + pitch * 0.1 + yaw * 0.05).clamp(0.0, 2.0);
+            outputs.thrust_vtol[1] = (throttle - roll * 0.1 + pitch * 0.1 - yaw * 0.05).clamp(0.0, 2.0);
+            outputs.thrust_vtol[2] = (throttle - roll * 0.1 - pitch * 0.1 + yaw * 0.05).clamp(0.0, 2.0);
+            outputs.thrust_vtol[3] = (throttle + roll * 0.1 - pitch * 0.1 - yaw * 0.05).clamp(0.0, 2.0);
 
             for i in 4..self.n_vtol_motors {
-                outputs.thrust_vtol[i] = throttle.clamp(0.0, 1.0);
+                outputs.thrust_vtol[i] = throttle.clamp(0.0, 2.0);
             }
         }
     }
