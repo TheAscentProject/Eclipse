@@ -1,6 +1,5 @@
 use crate::math::Vec3;
-use crate::aero::{AeroForces, AirData, compute_dynamic_pressure};
-use crate::physics::frames::FrameTransforms;
+use crate::aero::{AeroForces, AirData};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,18 +78,18 @@ impl Wing {
         density: f64,
         prop_wash_velocity: Option<f64>,
     ) -> AeroForces {
-        let v_mag = velocity.magnitude();
-        if v_mag < 1e-6 {
+        let airdata = AirData::from_body_velocity(velocity, density);
+        if airdata.velocity_mag < 1e-6 {
             return AeroForces::zero();
         }
 
         let effective_velocity = if let Some(wash) = prop_wash_velocity {
-            ((v_mag * v_mag + wash * wash).sqrt()).max(v_mag)
+            ((airdata.velocity_mag * airdata.velocity_mag + wash * wash).sqrt()).max(airdata.velocity_mag)
         } else {
-            v_mag
+            airdata.velocity_mag
         };
 
-        let q = compute_dynamic_pressure(density, effective_velocity);
+        let q = airdata.dynamic_pressure * (effective_velocity / airdata.velocity_mag).powi(2);
         
         let mut cl = self.compute_cl(alpha);
         let cd = self.compute_cd(alpha, cl);
@@ -100,7 +99,7 @@ impl Wing {
         }
         
         if self.blown_coefficient > 0.0 && prop_wash_velocity.is_some() {
-            let velocity_ratio = effective_velocity / v_mag;
+            let velocity_ratio = effective_velocity / airdata.velocity_mag;
             cl *= 1.0 + self.blown_coefficient * (velocity_ratio - 1.0);
         }
         

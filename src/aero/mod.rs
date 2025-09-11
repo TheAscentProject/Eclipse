@@ -4,8 +4,8 @@ pub mod atmosphere;
 pub mod forces;
 pub mod airdata;
 
-pub use wing::{Wing, WingSegment};
-pub use propeller::{Propeller, PropellerState};
+pub use wing::Wing;
+pub use propeller::Propeller;
 pub use atmosphere::Atmosphere;
-pub use forces::{AeroForces, compute_dynamic_pressure};
+pub use forces::AeroForces;
 pub use airdata::AirData;

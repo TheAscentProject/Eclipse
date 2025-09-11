@@ -1,5 +1,4 @@
 use crate::control::{PidController, FlightMode, ControlTarget};
-use crate::math::Vec3;
 use crate::physics::RigidBodyState;
 
 #[derive(Debug, Clone)]
@@ -123,9 +122,9 @@ impl AutoPilot {
 
     fn update_stabilize(
         &mut self,
-        state: &RigidBodyState,
-        target: &ControlTarget,
-        dt: f64,
+        _state: &RigidBodyState,
+        _target: &ControlTarget,
+        _dt: f64,
         outputs: &mut ControlOutputs,
         airspeed: f64,
     ) {
@@ -165,7 +164,7 @@ impl AutoPilot {
 
     fn update_transition(
         &mut self,
-        state: &RigidBodyState,
+        _state: &RigidBodyState,
         _target: &ControlTarget,
         _dt: f64,
         outputs: &mut ControlOutputs,

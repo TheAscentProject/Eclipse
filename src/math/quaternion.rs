@@ -54,11 +54,6 @@ impl Quat {
         (roll, pitch, yaw)
     }
 
-    pub fn normalize(&self) -> Self {
-        let mag = (self.w * self.w + self.x * self.x + self.y * self.y + self.z * self.z).sqrt();
-        Self::new(self.w / mag, self.x / mag, self.y / mag, self.z / mag)
-    }
-
     pub fn conjugate(&self) -> Self {
         Self::new(self.w, -self.x, -self.y, -self.z)
     }
@@ -84,20 +79,6 @@ impl Quat {
         }
     }
 
-    pub fn to_rotation_matrix(&self) -> na::Matrix3<f64> {
-        let q = self.normalize();
-        na::Matrix3::new(
-            1.0 - 2.0 * (q.y * q.y + q.z * q.z),
-            2.0 * (q.x * q.y - q.w * q.z),
-            2.0 * (q.x * q.z + q.w * q.y),
-            2.0 * (q.x * q.y + q.w * q.z),
-            1.0 - 2.0 * (q.x * q.x + q.z * q.z),
-            2.0 * (q.y * q.z - q.w * q.x),
-            2.0 * (q.x * q.z - q.w * q.y),
-            2.0 * (q.y * q.z + q.w * q.x),
-            1.0 - 2.0 * (q.x * q.x + q.y * q.y),
-        )
-    }
 }
 
 impl std::ops::Mul for Quat {

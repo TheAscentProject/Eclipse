@@ -31,8 +31,8 @@ impl RigidBodyState {
         
         let inertia_inv = inertia.try_inverse().unwrap_or(*inertia);
         let omega_body = self.angular_velocity;
-        let omega_cross_I_omega = omega_body.cross(&Vec3::from_na(&(inertia.to_owned() * omega_body.to_na())));
-        let angular_acceleration = Vec3::from_na(&(inertia_inv * (moments.to_na() - omega_cross_I_omega.to_na())));
+        let omega_cross_i_omega = omega_body.cross(&Vec3::from_na(&(inertia.to_owned() * omega_body.to_na())));
+        let angular_acceleration = Vec3::from_na(&(inertia_inv * (moments.to_na() - omega_cross_i_omega.to_na())));
         
         let q_dot = self.orientation.derivative(&omega_body);
         
@@ -88,7 +88,7 @@ impl RigidBody {
         Self::new(mass, inertia)
     }
 
-    pub fn compute_forces_and_moments(&self, state: &RigidBodyState, applied_forces: &[(Vec3, Vec3)]) -> (Vec3, Vec3) {
+    pub fn compute_forces_and_moments(&self, _state: &RigidBodyState, applied_forces: &[(Vec3, Vec3)]) -> (Vec3, Vec3) {
         let mut total_force = Vec3::zero();
         let mut total_moment = Vec3::zero();
         

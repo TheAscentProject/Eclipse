@@ -105,7 +105,16 @@ impl Aircraft {
             if i < controls.thrust_vtol.len() {
                 let thrust_per_motor = self.body.mass * 9.81 / 4.0;
                 let thrust_magnitude = controls.thrust_vtol[i] * thrust_per_motor * 1.5;
+                
+                let rpm = 2000.0 + controls.thrust_vtol[i] * 1000.0;
+                let _prop_state = mount.propeller.compute_state(
+                    rpm,
+                    self.state.velocity.dot(&mount.direction),
+                    self.atmosphere.density
+                );
+                
                 total_vtol_thrust += thrust_magnitude;
+                
                 let thrust_vector = mount.direction * thrust_magnitude;
                 applied_forces.push((thrust_vector, mount.position));
             }
@@ -113,7 +122,16 @@ impl Aircraft {
         
         for mount in &self.config.cruise_props {
             let thrust_magnitude = controls.thrust_cruise * self.body.mass * 2.0;
+            
+            let rpm = 1500.0 + controls.thrust_cruise * 2000.0;
+            let _prop_state = mount.propeller.compute_state(
+                rpm,
+                self.state.velocity.dot(&mount.direction),
+                self.atmosphere.density
+            );
+            
             total_cruise_thrust += thrust_magnitude;
+            
             let thrust_vector = mount.direction * thrust_magnitude;
             applied_forces.push((thrust_vector, mount.position));
         }
