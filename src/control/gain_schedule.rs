@@ -53,14 +53,14 @@ impl Default for GainSchedule {
     fn default() -> Self {
         Self {
             hover: PidGains {
-                // Hover: Aggressive attitude control, moderate position
-                roll: GainSet::new(2.5, 0.1, 0.8).with_limits(1.0, 0.5),
-                pitch: GainSet::new(2.5, 0.1, 0.8).with_limits(1.0, 0.5),
-                yaw: GainSet::new(1.5, 0.05, 0.3).with_limits(0.5, 0.3),
-                altitude: GainSet::new(1.2, 0.08, 0.4).with_limits(1.0, 0.5),
-                climb_rate: GainSet::new(0.8, 0.1, 0.2).with_limits(1.0, 0.5),
-                position_x: GainSet::new(0.8, 0.02, 0.2).with_limits(0.5, 0.3),
-                position_y: GainSet::new(0.8, 0.02, 0.2).with_limits(0.5, 0.3),
+                // Hover: Moderate attitude control to prevent oscillation
+                roll: GainSet::new(1.2, 0.02, 0.4).with_limits(0.5, 0.3),
+                pitch: GainSet::new(1.2, 0.02, 0.4).with_limits(0.5, 0.3),
+                yaw: GainSet::new(0.8, 0.01, 0.2).with_limits(0.3, 0.2),
+                altitude: GainSet::new(0.6, 0.03, 0.2).with_limits(0.5, 0.3),
+                climb_rate: GainSet::new(0.4, 0.05, 0.15).with_limits(0.5, 0.3),
+                position_x: GainSet::new(0.4, 0.01, 0.15).with_limits(0.3, 0.2),
+                position_y: GainSet::new(0.4, 0.01, 0.15).with_limits(0.3, 0.2),
             },
             transition: PidGains {
                 // Transition: Balanced control, prepare for wing-borne flight
