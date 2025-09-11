@@ -107,7 +107,7 @@ impl Aircraft {
                 let thrust_magnitude = controls.thrust_vtol[i] * thrust_per_motor * 1.5;
                 
                 let rpm = 2000.0 + controls.thrust_vtol[i] * 1000.0;
-                let _prop_state = mount.propeller.compute_state(
+                let _prop_thrust = mount.propeller.compute_thrust(
                     rpm,
                     self.state.velocity.dot(&mount.direction),
                     self.atmosphere.density
@@ -124,7 +124,7 @@ impl Aircraft {
             let thrust_magnitude = controls.thrust_cruise * self.body.mass * 2.0;
             
             let rpm = 1500.0 + controls.thrust_cruise * 2000.0;
-            let _prop_state = mount.propeller.compute_state(
+            let _prop_thrust = mount.propeller.compute_thrust(
                 rpm,
                 self.state.velocity.dot(&mount.direction),
                 self.atmosphere.density
@@ -168,7 +168,6 @@ impl Aircraft {
             angular_velocity: self.state.angular_velocity,
             airspeed,
             altitude: self.state.position.z,
-            ground_speed: (self.state.velocity.x.powi(2) + self.state.velocity.y.powi(2)).sqrt(),
             forces: self.last_forces.clone(),
         }
     }
@@ -182,6 +181,5 @@ pub struct AircraftTelemetry {
     pub angular_velocity: Vec3,
     pub airspeed: f64,
     pub altitude: f64,
-    pub ground_speed: f64,
     pub forces: ForcesTelemetry,
 }

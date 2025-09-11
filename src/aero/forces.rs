@@ -27,6 +27,3 @@ impl AeroForces {
     }
 }
 
-pub fn compute_dynamic_pressure(density: f64, velocity: f64) -> f64 {
-    0.5 * density * velocity * velocity
-}

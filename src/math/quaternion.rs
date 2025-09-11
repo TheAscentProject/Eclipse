@@ -1,5 +1,4 @@
 use super::Vec3;
-use nalgebra as na;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

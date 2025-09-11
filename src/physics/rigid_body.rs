@@ -69,25 +69,6 @@ impl RigidBody {
         }
     }
 
-    pub fn point_mass(mass: f64) -> Self {
-        let inertia = na::Matrix3::identity() * (mass * 0.1);
-        Self::new(mass, inertia)
-    }
-
-    pub fn box_inertia(mass: f64, width: f64, height: f64, depth: f64) -> Self {
-        let ixx = mass * (height * height + depth * depth) / 12.0;
-        let iyy = mass * (width * width + depth * depth) / 12.0;
-        let izz = mass * (width * width + height * height) / 12.0;
-        
-        let inertia = na::Matrix3::new(
-            ixx, 0.0, 0.0,
-            0.0, iyy, 0.0,
-            0.0, 0.0, izz,
-        );
-        
-        Self::new(mass, inertia)
-    }
-
     pub fn compute_forces_and_moments(&self, _state: &RigidBodyState, applied_forces: &[(Vec3, Vec3)]) -> (Vec3, Vec3) {
         let mut total_force = Vec3::zero();
         let mut total_moment = Vec3::zero();

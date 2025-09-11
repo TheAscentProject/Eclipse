@@ -1,6 +1,6 @@
 use crate::sim::Aircraft;
 use crate::config::{AircraftConfig, SimulationConfig};
-use crate::control::{ControlTarget, FlightMode};
+use crate::control::ControlTarget;
 use crate::math::Vec3;
 use std::time::{Duration, Instant};
 
@@ -121,21 +121,6 @@ impl Simulator {
         }
     }
 
-    pub fn set_target(&mut self, target: ControlTarget) {
-        self.target = target;
-        println!("Target updated to: {:?}", self.target.mode);
-    }
-
-    pub fn set_hover_target(&mut self, altitude: f64) {
-        self.target = ControlTarget::hover_at_altitude(altitude);
-    }
-
-    pub fn set_transition_mode(&mut self) {
-        let mut target = ControlTarget::new(FlightMode::Transition);
-        target.altitude = Some(self.aircraft.state.position.z);
-        target.velocity = Some(Vec3::new(0.0, 15.0, 0.0));
-        self.target = target;
-    }
 
     fn print_status(&self, telemetry: &crate::sim::aircraft::AircraftTelemetry) {
         let (roll, pitch, yaw) = telemetry.attitude;

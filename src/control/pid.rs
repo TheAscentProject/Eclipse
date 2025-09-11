@@ -55,9 +55,4 @@ impl PidController {
         output
     }
 
-    pub fn reset(&mut self) {
-        self.integral = 0.0;
-        self.previous_error = 0.0;
-        self.derivative_filtered = 0.0;
-    }
 }

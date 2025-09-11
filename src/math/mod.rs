@@ -1,6 +1,5 @@
 pub mod vector;
 pub mod quaternion;
-pub mod frame;
 
 pub use vector::Vec3;
 pub use quaternion::Quat;

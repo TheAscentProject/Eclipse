@@ -25,18 +25,6 @@ pub struct ControlTarget {
 }
 
 impl ControlTarget {
-    pub fn new(mode: FlightMode) -> Self {
-        Self {
-            mode,
-            position: None,
-            velocity: None,
-            attitude: None,
-            thrust: None,
-            altitude: None,
-            yaw: None,
-        }
-    }
-
     pub fn hover_at_altitude(altitude: f64) -> Self {
         Self {
             mode: FlightMode::Hover,
@@ -49,15 +37,4 @@ impl ControlTarget {
         }
     }
 
-    pub fn stabilize_attitude(roll: f64, pitch: f64, yaw: f64) -> Self {
-        Self {
-            mode: FlightMode::Stabilize,
-            position: None,
-            velocity: None,
-            attitude: Some((roll, pitch, yaw)),
-            thrust: None,
-            altitude: None,
-            yaw: Some(yaw),
-        }
-    }
 }
