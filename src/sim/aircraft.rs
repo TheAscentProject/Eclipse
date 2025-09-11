@@ -3,6 +3,7 @@ use crate::physics::{RigidBody, RigidBodyState};
 use crate::aero::{AeroForces, Atmosphere};
 use crate::control::{AutoPilot, ControlTarget, ControlOutputs};
 use crate::math::Vec3;
+use crate::sim::DisturbanceModel;
 
 pub struct Aircraft {
     pub config: AircraftConfig,
@@ -10,6 +11,19 @@ pub struct Aircraft {
     pub state: RigidBodyState,
     pub autopilot: AutoPilot,
     pub atmosphere: Atmosphere,
+    pub disturbances: DisturbanceModel,
+    pub last_forces: ForcesTelemetry,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ForcesTelemetry {
+    pub total_thrust_vtol: f64,
+    pub total_thrust_cruise: f64,
+    pub total_force: Vec3,
+    pub total_moment: Vec3,
+    pub wind_force: Vec3,
+    pub gravity_force: Vec3,
+    pub aero_force: Vec3,
 }
 
 impl Aircraft {
@@ -24,6 +38,8 @@ impl Aircraft {
             state: RigidBodyState::new(),
             autopilot,
             atmosphere: Atmosphere::sea_level(),
+            disturbances: DisturbanceModel::new().with_wind(Vec3::new(0.5, 0.3, 0.0), 1.5),
+            last_forces: ForcesTelemetry::default(),
         }
     }
 
@@ -34,13 +50,20 @@ impl Aircraft {
 
     pub fn update(&mut self, target: &ControlTarget, dt: f64) {
         self.atmosphere = Atmosphere::at_altitude(-self.state.position.z);
+        self.disturbances.update(dt);
         
+        let noisy_state = self.disturbances.add_sensor_noise(&self.state);
         let airspeed = self.state.velocity.magnitude();
-        let control_outputs = self.autopilot.update(&self.state, target, dt, airspeed);
+        let control_outputs = self.autopilot.update(&noisy_state, target, dt, airspeed);
         
         let (total_force, total_moment) = self.compute_forces_and_moments(&control_outputs);
         
-        let forces_body = Vec3::new(total_force.x, total_force.y, total_force.z);
+        let wind_force = self.disturbances.get_wind_force(-self.state.position.z);
+        let forces_body = Vec3::new(
+            total_force.x + wind_force.x,
+            total_force.y + wind_force.y,
+            total_force.z + wind_force.z
+        );
         let moments_body = Vec3::new(total_moment.x, total_moment.y, total_moment.z);
         
         use crate::physics::Integrator;
@@ -55,7 +78,7 @@ impl Aircraft {
         );
     }
 
-    fn compute_forces_and_moments(&self, controls: &ControlOutputs) -> (Vec3, Vec3) {
+    fn compute_forces_and_moments(&mut self, controls: &ControlOutputs) -> (Vec3, Vec3) {
         let mut total_forces = AeroForces::zero();
         
         let airspeed = self.state.velocity.magnitude();
@@ -74,11 +97,14 @@ impl Aircraft {
         total_forces.add(&wing_forces);
         
         let mut applied_forces = Vec::new();
+        let mut total_vtol_thrust = 0.0;
+        let mut total_cruise_thrust = 0.0;
         
         for (i, mount) in self.config.vtol_props.iter().enumerate() {
             if i < controls.thrust_vtol.len() {
                 let thrust_per_motor = self.body.mass * 9.81 / 4.0;
                 let thrust_magnitude = controls.thrust_vtol[i] * thrust_per_motor * 1.5;
+                total_vtol_thrust += thrust_magnitude;
                 let thrust_vector = mount.direction * thrust_magnitude;
                 applied_forces.push((thrust_vector, mount.position));
             }
@@ -86,13 +112,22 @@ impl Aircraft {
         
         for mount in &self.config.cruise_props {
             let thrust_magnitude = controls.thrust_cruise * self.body.mass * 2.0;
+            total_cruise_thrust += thrust_magnitude;
             let thrust_vector = mount.direction * thrust_magnitude;
             applied_forces.push((thrust_vector, mount.position));
         }
         
+        self.last_forces.total_thrust_vtol = total_vtol_thrust;
+        self.last_forces.total_thrust_cruise = total_cruise_thrust;
+        self.last_forces.aero_force = total_forces.total_force();
+        
         applied_forces.push((total_forces.total_force(), Vec3::zero()));
         
         let (force, moment) = self.body.compute_forces_and_moments(&self.state, &applied_forces);
+        
+        self.last_forces.total_force = force;
+        self.last_forces.total_moment = moment;
+        self.last_forces.gravity_force = Vec3::new(0.0, 0.0, self.body.mass * 9.81);
         
         let additional_moment = total_forces.moment + Vec3::new(
             controls.aileron * 10.0,
@@ -115,6 +150,7 @@ impl Aircraft {
             airspeed,
             altitude: self.state.position.z,
             ground_speed: (self.state.velocity.x.powi(2) + self.state.velocity.y.powi(2)).sqrt(),
+            forces: self.last_forces.clone(),
         }
     }
 }
@@ -128,4 +164,5 @@ pub struct AircraftTelemetry {
     pub airspeed: f64,
     pub altitude: f64,
     pub ground_speed: f64,
+    pub forces: ForcesTelemetry,
 }
