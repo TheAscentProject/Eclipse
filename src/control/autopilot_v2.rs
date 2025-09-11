@@ -253,18 +253,18 @@ impl AutoPilotV2 {
         
         match mode {
             FlightMode::Hover | FlightMode::AltHold => {
-                // Vertical thrust for altitude hold
+                // Vertical thrust for altitude hold - needs more base thrust
                 let target_altitude = target.altitude.unwrap_or(altitude);
                 let altitude_error = target_altitude - altitude;
-                let vertical_demand = 0.65 + self.altitude_pid.update(altitude_error, dt);
-                (vertical_demand.clamp(0.3, 1.5), 0.0)
+                let vertical_demand = 1.2 + self.altitude_pid.update(altitude_error, dt);
+                (vertical_demand.clamp(0.8, 2.0), 0.0)
             }
             FlightMode::Takeoff => {
-                // Controlled climb
+                // Controlled climb - higher base thrust for reliable takeoff
                 let target_climb_rate = target.velocity.map(|v| -v.z).unwrap_or(5.0);
                 let climb_error = target_climb_rate - climb_rate;
-                let vertical_demand = 0.7 + self.climb_rate_pid.update(climb_error, dt);
-                (vertical_demand.clamp(0.5, 1.8), 0.0)
+                let vertical_demand = 1.3 + self.climb_rate_pid.update(climb_error, dt);
+                (vertical_demand.clamp(1.0, 2.2), 0.0)
             }
             FlightMode::Transition => {
                 // Blend vertical and forward thrust
