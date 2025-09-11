@@ -1,7 +1,7 @@
 use nalgebra as na;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub struct Vec3 {
     pub x: f64,
     pub y: f64,
