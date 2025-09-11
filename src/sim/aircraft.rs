@@ -1,7 +1,7 @@
 use crate::config::AircraftConfig;
 use crate::physics::{RigidBody, RigidBodyState};
 use crate::aero::{AeroForces, Atmosphere};
-use crate::control::{AutoPilot, ControlTarget, ControlOutputs};
+use crate::control::{AutoPilotV2, ControlTarget, ControlOutputs};
 use crate::math::Vec3;
 use crate::sim::DisturbanceModel;
 
@@ -9,7 +9,7 @@ pub struct Aircraft {
     pub config: AircraftConfig,
     pub body: RigidBody,
     pub state: RigidBodyState,
-    pub autopilot: AutoPilot,
+    pub autopilot: AutoPilotV2,
     pub atmosphere: Atmosphere,
     pub disturbances: DisturbanceModel,
     pub last_forces: ForcesTelemetry,
