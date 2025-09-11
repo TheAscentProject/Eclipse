@@ -59,6 +59,7 @@ impl Aircraft {
         let (total_force, total_moment) = self.compute_forces_and_moments(&control_outputs);
         
         let wind_force = self.disturbances.get_wind_force(-self.state.position.z);
+        self.last_forces.wind_force = wind_force;
         let forces_body = Vec3::new(
             total_force.x + wind_force.x,
             total_force.y + wind_force.y,
