@@ -43,7 +43,7 @@ impl AutoPilot {
             pitch_pid: PidController::new(0.15, 0.002, 0.08).with_limits(0.3, 0.5),
             yaw_pid: PidController::new(0.1, 0.001, 0.02).with_limits(0.2, 0.3),
             altitude_pid: PidController::new(0.3, 0.02, 0.15).with_limits(1.5, 0.5),
-            climb_rate_pid: PidController::new(0.4, 0.01, 0.1).with_limits(0.5, 0.3),
+            climb_rate_pid: PidController::new(0.15, 0.02, 0.05).with_limits(0.2, 0.2),
             position_pid_x: PidController::new(0.15, 0.005, 0.05).with_limits(0.5, 0.3),
             position_pid_y: PidController::new(0.15, 0.005, 0.05).with_limits(0.5, 0.3),
             n_vtol_motors,
@@ -192,7 +192,6 @@ impl AutoPilot {
         dt: f64,
         outputs: &mut ControlOutputs,
     ) {
-        let current_altitude = -state.position.z;
         let current_climb_rate = -state.velocity.z;
         
         let target_climb_rate = if let Some(vel) = target.velocity {
@@ -204,17 +203,29 @@ impl AutoPilot {
         let climb_rate_error = target_climb_rate - current_climb_rate;
         let climb_thrust_adjust = self.climb_rate_pid.update(climb_rate_error, dt);
         
-        let base_thrust = 0.667 + climb_thrust_adjust;
+        // Base thrust slightly above hover to maintain climb
+        let base_thrust = 0.68 + climb_thrust_adjust;
         
+        // Apply base thrust to all motors
         for i in 0..self.n_vtol_motors {
-            outputs.thrust_vtol[i] = base_thrust.clamp(0.0, 1.0);
+            outputs.thrust_vtol[i] = base_thrust.clamp(0.6, 0.75);
         }
         
+        // Attitude stabilization - keep level during climb
         let (roll, pitch, _) = state.orientation.to_euler();
         let roll_output = self.roll_pid.update(-roll, dt);
         let pitch_output = self.pitch_pid.update(-pitch, dt);
         
-        self.mix_multirotor_controls(outputs, 0.0, roll_output, pitch_output, 0.0);
+        // Reduce horizontal velocity if getting too fast
+        let horizontal_speed = (state.velocity.x.powi(2) + state.velocity.y.powi(2)).sqrt();
+        let pitch_correction = if horizontal_speed > 2.0 {
+            (horizontal_speed - 2.0) * 0.01
+        } else {
+            0.0
+        };
+        
+        // Mix in attitude corrections
+        self.mix_multirotor_controls(outputs, 0.0, roll_output, pitch_output - pitch_correction, 0.0);
     }
 
     fn mix_multirotor_controls(
