@@ -57,4 +57,18 @@ impl SimulationConfig {
             real_time: false,
         }
     }
+    
+    pub fn takeoff_test() -> Self {
+        Self {
+            dt: 0.01,
+            max_time: 300.0,
+            initial_altitude: 0.0,
+            initial_position: [0.0, 0.0, 0.0],
+            initial_velocity: [0.0, 0.0, 0.0],
+            wind_velocity: [0.0, 0.0, 0.0],
+            atmosphere_altitude: 0.0,
+            gravity_enabled: true,
+            real_time: false,
+        }
+    }
 }
