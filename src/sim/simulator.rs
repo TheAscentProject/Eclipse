@@ -140,15 +140,21 @@ impl Simulator {
     fn print_status(&self, telemetry: &crate::sim::aircraft::AircraftTelemetry) {
         let (roll, pitch, yaw) = telemetry.attitude;
         println!(
-            "t={:6.1}s | Alt={:6.1}m | Vel={:6.1}m/s | RPY=({:5.1}°,{:5.1}°,{:5.1}°) | Pos=({:6.1},{:6.1})",
+            "t={:6.1}s | Alt={:6.1}m | Vel={:6.1}m/s | RPY=({:5.1}°,{:5.1}°,{:5.1}°)",
             self.time,
             telemetry.altitude,
             telemetry.airspeed,
             roll.to_degrees(),
             pitch.to_degrees(),
-            yaw.to_degrees(),
-            telemetry.position.x,
-            telemetry.position.y
+            yaw.to_degrees()
+        );
+        println!(
+            "         | Thrust: VTOL={:6.1}N Cruise={:6.1}N | Wind={:5.2},{:5.2},{:5.2} m/s",
+            telemetry.forces.total_thrust_vtol,
+            telemetry.forces.total_thrust_cruise,
+            telemetry.forces.wind_force.x,
+            telemetry.forces.wind_force.y,
+            telemetry.forces.wind_force.z
         );
     }
 
