@@ -33,7 +33,7 @@ impl Simulator {
         // Set initial target based on test type
         let target = if sim_config.initial_altitude == 0.0 && sim_config.max_time >= 200.0 {
             // Takeoff test configuration
-            ControlTarget::takeoff_to_altitude(400.0, 5.0)
+            ControlTarget::takeoff_to_altitude(120.0, 5.0)
         } else {
             ControlTarget::hover_at_altitude(sim_config.initial_altitude)
         };
@@ -99,7 +99,7 @@ impl Simulator {
             }
         }
 
-        if telemetry.altitude > 10.0 {
+        if telemetry.altitude < -1.0 {  // Crashed if below ground (negative altitude)
             println!("\nCRASH: Aircraft hit ground");
             self.running = false;
             return false;

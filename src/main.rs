@@ -54,7 +54,7 @@ impl FlightMode {
     fn description(&self) -> &'static str {
         match self {
             FlightMode::Hover => "Hold stable position at 5m altitude",
-            FlightMode::Takeoff => "Climb from ground level to 400m altitude", 
+            FlightMode::Takeoff => "Climb from ground level to 120m altitude", 
             FlightMode::Transition => "Forward flight with transition between hover and cruise",
             FlightMode::Auto => "Automated waypoint navigation",
         }
@@ -183,8 +183,8 @@ fn determine_outcome(simulator: &Simulator, sim_config: &SimulationConfig) -> &'
         .map(|(_, telem)| telem.altitude)
         .unwrap_or(0.0);
     
-    // Check if crashed (altitude too high means below ground)
-    if final_altitude > 10.0 {
+    // Check if crashed (negative altitude means below ground)
+    if final_altitude < -1.0 {
         return "CRASHED";
     }
     
