@@ -1,7 +1,7 @@
 use crate::config::AircraftConfig;
 use crate::physics::{RigidBody, RigidBodyState};
 use crate::aero::{AeroForces, Atmosphere};
-use crate::control::{AutoPilotV2, ControlTarget, ControlOutputs};
+use crate::control::{AutoPilotLQG, ControlTarget, ControlOutputs};
 use crate::math::Vec3;
 use crate::sim::DisturbanceModel;
 
@@ -9,7 +9,7 @@ pub struct Aircraft {
     pub config: AircraftConfig,
     pub body: RigidBody,
     pub state: RigidBodyState,
-    pub autopilot: AutoPilotV2,
+    pub autopilot: AutoPilotLQG,
     pub atmosphere: Atmosphere,
     pub disturbances: DisturbanceModel,
     pub last_forces: ForcesTelemetry,
@@ -31,7 +31,10 @@ impl Aircraft {
         let body = config.to_rigid_body();
         let n_vtol_motors = config.vtol_props.len();
         let n_cruise_motors = config.cruise_props.len();
-        let autopilot = AutoPilotV2::new(n_vtol_motors, n_cruise_motors);
+        let mut autopilot = AutoPilotLQG::new(n_vtol_motors, n_cruise_motors);
+        
+        // Initialize autopilot with aircraft configuration
+        autopilot.initialize(config.clone());
         
         Self {
             config,
@@ -47,15 +50,18 @@ impl Aircraft {
     pub fn set_initial_state(&mut self, position: Vec3, velocity: Vec3) {
         self.state.position = position;
         self.state.velocity = velocity;
+        
+        // Initialize autopilot estimator with known state
+        self.autopilot.reset(&self.state);
     }
 
     pub fn update(&mut self, target: &ControlTarget, dt: f64) {
         self.atmosphere = Atmosphere::at_altitude(-self.state.position.z);
         self.disturbances.update(dt);
         
-        let noisy_state = self.disturbances.add_sensor_noise(&self.state);
+        let _noisy_state = self.disturbances.add_sensor_noise(&self.state);
         let airspeed = self.state.velocity.magnitude();
-        let control_outputs = self.autopilot.update(&noisy_state, target, dt, airspeed);
+        let control_outputs = self.autopilot.update(&self.state, target, dt, airspeed);
         
         let (total_force, total_moment) = self.compute_forces_and_moments(&control_outputs);
         
