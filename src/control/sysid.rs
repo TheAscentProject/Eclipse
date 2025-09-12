@@ -33,6 +33,7 @@ pub struct LinearModel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FlightRegime {
     Hover,
+    Takeoff,
     Transition,
     Cruise,
 }
@@ -43,6 +44,37 @@ impl SystemID {
             state_dim: 12, // [x, y, z, vx, vy, vz, phi, theta, psi, p, q, r]
             input_dim: 4,  // [Mx, My, Mz, Fz]
             epsilon: 1e-6,
+        }
+    }
+    
+    /// Identify system around takeoff point (ground level, climbing)
+    pub fn identify_takeoff(&self, config: &AircraftConfig) -> LinearModel {
+        let airspeed = 0.0;
+        let altitude = 0.0; // At ground level
+        
+        // Takeoff trim state: at ground, ready to climb
+        let x_trim = DVector::from_vec(vec![
+            0.0, 0.0, -altitude, // position (NED)
+            0.0, 0.0, -5.0,      // climbing velocity (5 m/s up)
+            0.0, 0.0, 0.0,       // level attitude
+            0.0, 0.0, 0.0,       // no angular rates
+        ]);
+        
+        // Takeoff trim input: high thrust for climbing
+        let u_trim = DVector::from_vec(vec![
+            0.0, 0.0, 0.0,       // no moments needed
+            1.5,                 // high thrust for climb
+        ]);
+        
+        let (a_matrix, b_matrix) = self.compute_jacobians(config, &x_trim, &u_trim, airspeed);
+        
+        LinearModel {
+            a_matrix,
+            b_matrix,
+            x_trim,
+            u_trim,
+            regime: FlightRegime::Takeoff,
+            airspeed,
         }
     }
     
