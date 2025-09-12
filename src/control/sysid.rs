@@ -1,9 +1,6 @@
 use nalgebra::{DMatrix, DVector};
 use crate::physics::RigidBodyState;
-use crate::control::ControlOutputs;
 use crate::config::AircraftConfig;
-use crate::sim::Aircraft;
-use crate::control::ControlTarget;
 use crate::math::Vec3;
 
 /// System identification for extracting linearized A/B matrices
@@ -33,7 +30,7 @@ pub struct LinearModel {
     pub airspeed: f64,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FlightRegime {
     Hover,
     Transition,
@@ -116,7 +113,7 @@ impl SystemID {
         config: &AircraftConfig,
         x_trim: &DVector<f64>,
         u_trim: &DVector<f64>,
-        airspeed: f64,
+        _airspeed: f64,
     ) -> (DMatrix<f64>, DMatrix<f64>) {
         let mut a_matrix = DMatrix::zeros(self.state_dim, self.state_dim);
         let mut b_matrix = DMatrix::zeros(self.state_dim, self.input_dim);
@@ -160,7 +157,7 @@ impl SystemID {
         let state = RigidBodyState {
             position: Vec3::new(x[0], x[1], x[2]),
             velocity: Vec3::new(x[3], x[4], x[5]),
-            orientation: crate::math::Quaternion::from_euler(x[6], x[7], x[8]),
+            orientation: crate::math::Quat::from_euler(x[6], x[7], x[8]),
             angular_velocity: Vec3::new(x[9], x[10], x[11]),
         };
         
@@ -185,7 +182,8 @@ impl SystemID {
         
         // Compute accelerations
         let linear_accel = total_force_with_gravity / config.mass;
-        let angular_accel = rigid_body.inertia_inv * (total_moment - state.angular_velocity.cross(&(rigid_body.inertia * state.angular_velocity)));
+        let inertia_inv = rigid_body.inertia.try_inverse().unwrap_or(rigid_body.inertia);
+        let angular_accel = Vec3::from_na(&(inertia_inv * (total_moment.to_na() - state.angular_velocity.cross(&Vec3::from_na(&(rigid_body.inertia * state.angular_velocity.to_na()))).to_na())));
         
         // Compute attitude derivatives (simplified small-angle approximation)
         let attitude_rate = Vec3::new(
