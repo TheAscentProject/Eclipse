@@ -72,6 +72,13 @@ impl std::ops::Mul<f64> for Vec3 {
     }
 }
 
+impl std::ops::Div<f64> for Vec3 {
+    type Output = Self;
+    fn div(self, scalar: f64) -> Self {
+        Self::new(self.x / scalar, self.y / scalar, self.z / scalar)
+    }
+}
+
 impl std::ops::Neg for Vec3 {
     type Output = Self;
     fn neg(self) -> Self {
