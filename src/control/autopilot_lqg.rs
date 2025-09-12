@@ -2,7 +2,6 @@ use crate::control::{ControlOutputs, ControlTarget, FlightMode};
 use crate::control::sysid::{SystemID, LinearModel, FlightRegime};
 use crate::control::lqr_tuning::{LQRTuner, LQRDesign};
 use crate::control::kalman::{ExtendedKalmanFilter, generate_sensor_measurements};
-use crate::control::qp_allocation::QPAllocator;
 use crate::physics::RigidBodyState;
 use crate::config::AircraftConfig;
 use crate::math::Vec3;
@@ -13,9 +12,6 @@ use std::collections::HashMap;
 pub struct AutoPilotLQG {
     /// Kalman filter for state estimation
     estimator: ExtendedKalmanFilter,
-    
-    /// Control allocator
-    allocator: QPAllocator,
     
     /// LQR designs for different flight regimes
     lqr_designs: HashMap<FlightRegime, LQRDesign>,
@@ -44,7 +40,6 @@ impl AutoPilotLQG {
     pub fn new(n_vtol_motors: usize, n_cruise_motors: usize) -> Self {
         Self {
             estimator: ExtendedKalmanFilter::new(),
-            allocator: QPAllocator::new_quadrotor(),
             lqr_designs: HashMap::new(),
             linear_models: HashMap::new(),
             current_regime: FlightRegime::Hover,
@@ -203,7 +198,7 @@ impl AutoPilotLQG {
             self.cached_thrust,
         ]);
         
-        let motor_commands = self.allocator.allocate(&desired_wrench, dt);
+        let motor_commands = self.simple_quad_mixing(&desired_wrench);
         
         // Build output
         let mut outputs = ControlOutputs::zero(self.n_vtol_motors);
@@ -272,12 +267,31 @@ impl AutoPilotLQG {
         println!("=====================================\n");
     }
     
-    /// Reset estimator and allocator
+    /// Reset estimator
     pub fn reset(&mut self, initial_state: &RigidBodyState) {
         self.estimator.initialize(initial_state);
-        self.allocator.reset();
         self.estimator_counter = 0;
         println!("LQG Autopilot reset to initial state");
+    }
+    
+    /// Simple quadrotor control mixing
+    fn simple_quad_mixing(&self, wrench: &DVector<f64>) -> Vec<f64> {
+        if wrench.len() < 4 {
+            return vec![1.0; self.n_vtol_motors];
+        }
+        
+        let mx = wrench[0] * 0.1; // Scale down moments
+        let my = wrench[1] * 0.1;
+        let mz = wrench[2] * 0.1;
+        let thrust = wrench[3];
+        
+        // Simple X-configuration quadrotor mixing
+        vec![
+            (thrust + mx + my + mz).clamp(0.0, 2.0),  // Front-right
+            (thrust - mx + my - mz).clamp(0.0, 2.0),  // Front-left
+            (thrust - mx - my + mz).clamp(0.0, 2.0),  // Back-left
+            (thrust + mx - my - mz).clamp(0.0, 2.0),  // Back-right
+        ]
     }
     
     /// Get current state estimate (for debugging)
