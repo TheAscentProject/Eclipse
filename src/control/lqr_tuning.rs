@@ -57,6 +57,7 @@ impl LQRTuner {
     fn get_tuning_weights(&self, regime: FlightRegime, airspeed: f64) -> (DMatrix<f64>, DMatrix<f64>) {
         match regime {
             FlightRegime::Hover => self.hover_weights(),
+            FlightRegime::Takeoff => self.takeoff_weights(),
             FlightRegime::Transition => self.transition_weights(airspeed),
             FlightRegime::Cruise => self.cruise_weights(airspeed),
         }
@@ -74,6 +75,25 @@ impl LQRTuner {
         
         // R matrix: [Mx, My, Mz, Fz] - moderate control effort
         let r_diag = vec![0.5, 0.5, 1.0, 0.1];
+        
+        (
+            DMatrix::from_diagonal(&DVector::from_vec(q_diag)),
+            DMatrix::from_diagonal(&DVector::from_vec(r_diag)),
+        )
+    }
+    
+    /// Takeoff tuning: Aggressive altitude tracking with high thrust authority
+    fn takeoff_weights(&self) -> (DMatrix<f64>, DMatrix<f64>) {
+        // Q matrix: [x, y, z, vx, vy, vz, phi, theta, psi, p, q, r]
+        let q_diag = vec![
+            1.0,  1.0,  100.0,   // Position: MASSIVE altitude penalty
+            1.0,  1.0,  50.0,    // Velocity: strong vertical velocity tracking
+            15.0, 15.0, 5.0,     // Attitude: maintain level flight
+            2.0,  2.0,  2.0,     // Rates: moderate rate damping
+        ];
+        
+        // R matrix: [Mx, My, Mz, Fz] - make thrust very cheap to use
+        let r_diag = vec![0.5, 0.5, 1.0, 0.01];
         
         (
             DMatrix::from_diagonal(&DVector::from_vec(q_diag)),

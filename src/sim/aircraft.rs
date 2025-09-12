@@ -176,7 +176,7 @@ impl Aircraft {
             attitude: (roll, pitch, yaw),
             angular_velocity: self.state.angular_velocity,
             airspeed,
-            altitude: self.state.position.z,
+            altitude: -self.state.position.z,  // Convert NED Z to altitude (negative Z is up)
             forces: self.last_forces.clone(),
         }
     }
