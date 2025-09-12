@@ -1,7 +1,7 @@
 use crate::control::{ControlOutputs, ControlTarget, FlightMode};
-use crate::control::sysid::{SystemID, LinearModel, FlightRegime, discretize_system};
+use crate::control::sysid::{SystemID, LinearModel, FlightRegime};
 use crate::control::lqr_tuning::{LQRTuner, LQRDesign};
-use crate::control::kalman::{ExtendedKalmanFilter, SensorMeasurements, generate_sensor_measurements};
+use crate::control::kalman::{ExtendedKalmanFilter, generate_sensor_measurements};
 use crate::control::qp_allocation::QPAllocator;
 use crate::physics::RigidBodyState;
 use crate::config::AircraftConfig;
