@@ -100,7 +100,7 @@ impl Simulator {
         }
 
         if telemetry.altitude > 10.0 {
-            println!("Simulation stopped: Aircraft crashed (altitude > 10m below ground)");
+            println!("\nCRASH: Aircraft hit ground");
             self.running = false;
             return false;
         }
@@ -122,42 +122,28 @@ impl Simulator {
 
     pub fn finish(&mut self) {
         self.running = false;
-        
-        println!("\nSimulation completed");
-        println!("Total time: {:.1} s", self.time);
-        println!("Total telemetry points: {}", self.telemetry_log.len());
-        
-        if let Some((_, final_telemetry)) = self.telemetry_log.last() {
-            println!("Final state:");
-            println!("  Position: ({:.1}, {:.1}, {:.1}) m", 
-                final_telemetry.position.x, 
-                final_telemetry.position.y, 
-                final_telemetry.position.z);
-            println!("  Velocity: {:.1} m/s", final_telemetry.airspeed);
-            println!("  Altitude: {:.1} m", final_telemetry.altitude);
-        }
+        println!(); // New line after status updates
     }
 
 
     fn print_status(&self, telemetry: &crate::sim::aircraft::AircraftTelemetry) {
-        let (roll, pitch, yaw) = telemetry.attitude;
-        println!(
-            "t={:6.1}s | Alt={:6.1}m | Vel={:6.1}m/s | RPY=({:5.1}°,{:5.1}°,{:5.1}°)",
+        // Clear previous line and print clean status
+        print!("\r\x1B[K"); // Clear line
+        print!("t={:6.1}s | Alt={:6.1}m | Vel={:5.1}m/s | Thrust={:5.0}N", 
             self.time,
             telemetry.altitude,
             telemetry.airspeed,
-            roll.to_degrees(),
-            pitch.to_degrees(),
-            yaw.to_degrees()
+            telemetry.forces.total_thrust_vtol
         );
-        println!(
-            "         | Thrust: VTOL={:6.1}N Cruise={:6.1}N | Wind={:5.2},{:5.2},{:5.2} m/s",
-            telemetry.forces.total_thrust_vtol,
-            telemetry.forces.total_thrust_cruise,
-            telemetry.forces.wind_force.x,
-            telemetry.forces.wind_force.y,
-            telemetry.forces.wind_force.z
-        );
+        
+        // Add stability indicator
+        let (roll, pitch, _) = telemetry.attitude;
+        let attitude_deg = (roll.to_degrees().abs() + pitch.to_degrees().abs()) / 2.0;
+        let stability = if attitude_deg < 2.0 { " [STABLE]" } else if attitude_deg < 10.0 { " [WOBBLE]" } else { " [UNSTABLE]" };
+        print!("{}", stability);
+        
+        use std::io::{self, Write};
+        io::stdout().flush().unwrap();
     }
 
     pub fn export_telemetry(&self, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
