@@ -126,7 +126,7 @@ impl LQRTuner {
         // For production code, use proper DARE solver like in scipy
         
         // Form Hamiltonian matrix
-        let n = a.nrows();
+        let _n = a.nrows();
         let m = b.ncols();
         
         // H = [A + B*R^-1*B^T*P,  -B*R^-1*B^T]
@@ -134,7 +134,7 @@ impl LQRTuner {
         
         // Simplified approach: Use fixed-point iteration
         let mut p = q.clone();
-        let r_inv = r.try_inverse().unwrap_or_else(|| DMatrix::identity(m, m));
+        let r_inv = r.clone().try_inverse().unwrap_or_else(|| DMatrix::identity(m, m));
         
         // Iterate P = A^T*P*A - A^T*P*B*(R + B^T*P*B)^-1*B^T*P*A + Q
         for _ in 0..50 {
@@ -186,7 +186,7 @@ impl LQRTuner {
         
         // Estimate phase margin from dominant pole
         let damping_ratio = if max_real_part < -0.1 { 0.7 } else { 0.3 };
-        let phase_margin = (damping_ratio * 100.0).min(80.0);
+        let phase_margin = (damping_ratio * 100.0_f64).min(80.0);
         
         // Estimate gain margin from stability
         let gain_margin = if max_real_part < -0.5 { 12.0 } else { 6.0 };
