@@ -1,6 +1,6 @@
 use nalgebra::{DMatrix, DVector};
+use std::ops::AddAssign;
 use crate::physics::RigidBodyState;
-use crate::control::sysid::LinearModel;
 use crate::math::Vec3;
 
 /// Extended Kalman Filter for state estimation
@@ -148,7 +148,7 @@ impl ExtendedKalmanFilter {
         let s = &h_jacobian * &self.p_matrix * h_jacobian.transpose() + &self.r_measurement;
         
         // Kalman gain
-        let s_inv = s.try_inverse().unwrap_or_else(|| {
+        let s_inv = s.clone().try_inverse().unwrap_or_else(|| {
             DMatrix::identity(s.nrows(), s.ncols())
         });
         let k_gain = &self.p_matrix * h_jacobian.transpose() * s_inv;
@@ -159,7 +159,7 @@ impl ExtendedKalmanFilter {
         // Covariance update (Joseph form for numerical stability)
         let eye = DMatrix::identity(self.state_dim, self.state_dim);
         let temp = &eye - &k_gain * &h_jacobian;
-        self.p_matrix = temp * &self.p_matrix * temp.transpose() + &k_gain * &self.r_measurement * k_gain.transpose();
+        self.p_matrix = temp.clone() * &self.p_matrix * temp.transpose() + &k_gain * &self.r_measurement * k_gain.transpose();
         
         // Normalize angles
         self.normalize_angles();
@@ -170,7 +170,7 @@ impl ExtendedKalmanFilter {
         RigidBodyState {
             position: Vec3::new(self.x_hat[0], self.x_hat[1], self.x_hat[2]),
             velocity: Vec3::new(self.x_hat[3], self.x_hat[4], self.x_hat[5]),
-            orientation: crate::math::Quaternion::from_euler(self.x_hat[6], self.x_hat[7], self.x_hat[8]),
+            orientation: crate::math::Quat::from_euler(self.x_hat[6], self.x_hat[7], self.x_hat[8]),
             angular_velocity: Vec3::new(
                 self.x_hat[9] - self.x_hat[12],   // Compensate gyro bias
                 self.x_hat[10] - self.x_hat[13],
@@ -214,11 +214,11 @@ impl ExtendedKalmanFilter {
     }
     
     /// Compute Jacobian of dynamics (∂f/∂x)
-    fn compute_dynamics_jacobian(&self, x: &DVector<f64>, _u: &DVector<f64>, dt: f64) -> DMatrix<f64> {
+    fn compute_dynamics_jacobian(&self, _x: &DVector<f64>, _u: &DVector<f64>, dt: f64) -> DMatrix<f64> {
         let mut f = DMatrix::identity(self.state_dim, self.state_dim);
         
         // Position derivatives depend on velocity
-        f.slice_mut((0, 3), (3, 3)).copy_from(&(DMatrix::identity(3, 3) * dt));
+        f.view_mut((0, 3), (3, 3)).copy_from(&(DMatrix::identity(3, 3) * dt));
         
         // Other derivatives are mostly identity for this simplified model
         // In practice, would compute full nonlinear Jacobian
@@ -315,7 +315,7 @@ impl ExtendedKalmanFilter {
 }
 
 /// Generate realistic sensor measurements from true state (for simulation)
-pub fn generate_sensor_measurements(true_state: &RigidBodyState, dt: f64) -> SensorMeasurements {
+pub fn generate_sensor_measurements(true_state: &RigidBodyState, _dt: f64) -> SensorMeasurements {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     
