@@ -1,6 +1,27 @@
 use crate::math::Vec3;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone)]
+pub struct ControlOutputs {
+    pub thrust_vtol: Vec<f64>,
+    pub thrust_cruise: f64,
+    pub aileron: f64,
+    pub elevator: f64,
+    pub rudder: f64,
+}
+
+impl ControlOutputs {
+    pub fn zero(n_vtol_motors: usize) -> Self {
+        Self {
+            thrust_vtol: vec![0.0; n_vtol_motors],
+            thrust_cruise: 0.0,
+            aileron: 0.0,
+            elevator: 0.0,
+            rudder: 0.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FlightMode {
     Stabilize,
