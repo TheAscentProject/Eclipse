@@ -33,7 +33,7 @@ impl SimulationConfig {
     pub fn hover_test() -> Self {
         Self {
             dt: 0.01,
-            max_time: 120.0,
+            max_time: 600.0,  // 10 minutes
             initial_altitude: 5.0,
             initial_position: [0.0, 0.0, -5.0],
             initial_velocity: [0.0, 0.0, 0.0],
@@ -61,7 +61,7 @@ impl SimulationConfig {
     pub fn takeoff_test() -> Self {
         Self {
             dt: 0.01,
-            max_time: 200.0,
+            max_time: 600.0,  // 10 minutes
             initial_altitude: 0.0,
             initial_position: [0.0, 0.0, 0.0],
             initial_velocity: [0.0, 0.0, 0.0],
