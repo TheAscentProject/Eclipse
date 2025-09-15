@@ -177,7 +177,6 @@ Requirements:
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/eclipse
 cd eclipse
 
 # Run tests
