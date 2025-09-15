@@ -1,5 +1,7 @@
 # Eclipse Flight Dynamics Simulator
 
+[![Sponsor](https://img.shields.io/badge/Sponsor-Patreon-red)](https://www.patreon.com/14815116/join)
+
 A modular six degree-of-freedom flight dynamics simulator for hybrid vertical takeoff and landing (VTOL) aircraft, implementing hierarchical flight control with gain scheduling and smooth mode transitions.
 
 ## Project Status
