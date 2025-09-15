@@ -121,8 +121,8 @@ fn main() {
     println!("\n┌─────────────────────────┐");
     println!("│     FLIGHT SUMMARY      │");
     println!("├─────────────────────────┤");
-    println!("│ Duration: {:>6.1}s      │", simulator.time);
-    println!("│ Max Alt:  {:>6.1}m      │", max_altitude);
+    println!("│ Duration: {:>6.1}s       │", simulator.time);
+    println!("│ Max Alt:  {:>6.1}m       │", max_altitude);
     println!("│ Outcome:  {:>11}   │", outcome);
     println!("└─────────────────────────┘");
     
