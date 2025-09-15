@@ -188,6 +188,14 @@ cargo build --release
 RUST_LOG=debug cargo run
 ```
 
+## Sponsorship
+
+Support the development of Eclipse Flight Dynamics Simulator:
+
+**[https://www.patreon.com/14815116/join](https://www.patreon.com/14815116/join)**
+
+Your sponsorship helps maintain and expand this open-source flight dynamics research platform.
+
 ## Contributing
 
 The project follows a modular architecture where each system has a single responsibility. When contributing:
