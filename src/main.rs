@@ -121,12 +121,13 @@ fn main() {
     println!("\n┌─────────────────────────┐");
     println!("│     FLIGHT SUMMARY      │");
     println!("├─────────────────────────┤");
-    println!("│ Duration: {:>6.1}s      │", simulator.time);
-    println!("│ Max Alt:  {:>6.1}m      │", max_altitude);
+    println!("│ Duration: {:>6.1}s       │", simulator.time);
+    println!("│ Max Alt:  {:>6.1}m       │", max_altitude);
     println!("│ Outcome:  {:>11}   │", outcome);
     println!("└─────────────────────────┘");
     
     // Export telemetry
+    println!("Exporting telemetry...");
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_else(|_| std::time::Duration::from_secs(0))

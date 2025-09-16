@@ -147,10 +147,36 @@ impl Simulator {
     }
 
     pub fn export_telemetry(&self, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
-        use std::fs::File;
-        use std::io::Write;
+        use std::fs::File; //Creates files
+        use std::fs::exists; //Checks if files/dir exits
+        use std::fs::create_dir_all; //Creates a dir & if parents aren't created it creates it too
+        use std::io::Write; //Writes to a existing file
+
+        let current_path  = std::env::current_exe()?.display().to_string().replace("\\", "/").replace("eclipse.exe", "");
+        let path = format!("{}{}/{}", current_path,filename.split("/").collect::<Vec<&str>>()[0], filename.split("/").collect::<Vec<&str>>()[1]); 
+
+        let does_exists = exists(&path);
         
-        let mut file = File::create(filename)?;
+        if !does_exists?{
+            let now_exists = create_dir_all(&path);
+            match now_exists{
+                Ok(()) => {
+                    //println!("Successfully created the directory.");
+                }
+                Err(e) => {
+                    match e.kind() {                    
+                        std::io::ErrorKind::PermissionDenied => {
+                            eprintln!("Error: Permission denied. Could not create directory.");
+                        }
+                        _ => {
+                            eprintln!("An unexpected I/O error occurred: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+        
+        let mut file = File::create(current_path + filename)?;
         writeln!(file, "time,x,y,z,vx,vy,vz,roll,pitch,yaw,wx,wy,wz,airspeed,altitude")?;
         
         for (time, telem) in &self.telemetry_log {
