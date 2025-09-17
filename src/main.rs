@@ -4,6 +4,7 @@ mod aero;
 mod control;
 mod config;
 mod sim;
+mod power;
 
 use config::{AircraftConfig, SimulationConfig};
 use sim::{Simulator, Visualization};

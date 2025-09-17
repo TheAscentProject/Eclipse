@@ -4,6 +4,7 @@ use crate::aero::{AeroForces, Atmosphere};
 use crate::control::{AutoPilotLQG, ControlTarget, ControlOutputs};
 use crate::math::Vec3;
 use crate::sim::DisturbanceModel;
+use crate::power::{Battery, PowerTelemetry};
 
 pub struct Aircraft {
     pub config: AircraftConfig,
@@ -13,6 +14,9 @@ pub struct Aircraft {
     pub atmosphere: Atmosphere,
     pub disturbances: DisturbanceModel,
     pub last_forces: ForcesTelemetry,
+    pub battery: Battery,
+    pub last_power: PowerTelemetry,
+    thrust_ramp: f64,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -36,6 +40,7 @@ impl Aircraft {
         // Initialize autopilot with aircraft configuration
         autopilot.initialize(config.clone());
         
+        let battery_cfg = config.battery.clone();
         Self {
             config,
             body,
@@ -44,6 +49,9 @@ impl Aircraft {
             atmosphere: Atmosphere::sea_level(),
             disturbances: DisturbanceModel::new().with_wind(Vec3::new(0.0, 0.0, 0.0), 0.0),
             last_forces: ForcesTelemetry::default(),
+            battery: Battery::new(battery_cfg),
+            last_power: PowerTelemetry::default(),
+            thrust_ramp: 0.0,
         }
     }
 
@@ -58,12 +66,15 @@ impl Aircraft {
     pub fn update(&mut self, target: &ControlTarget, dt: f64) {
         self.atmosphere = Atmosphere::at_altitude(-self.state.position.z);
         self.disturbances.update(dt);
+        // Smooth startup ramp to avoid thrust spikes
+        let ramp_time = 1.0;
+        self.thrust_ramp = (self.thrust_ramp + dt / ramp_time).clamp(0.0, 1.0);
         
         let _noisy_state = self.disturbances.add_sensor_noise(&self.state);
         let airspeed = self.state.velocity.magnitude();
         let control_outputs = self.autopilot.update(&self.state, target, dt, airspeed);
         
-        let (total_force, total_moment) = self.compute_forces_and_moments(&control_outputs);
+    let (total_force, total_moment) = self.compute_forces_and_moments(&control_outputs, dt);
         
         let wind_force = self.disturbances.get_wind_force(-self.state.position.z);
         self.last_forces.wind_force = wind_force;
@@ -86,7 +97,7 @@ impl Aircraft {
         );
     }
 
-    fn compute_forces_and_moments(&mut self, controls: &ControlOutputs) -> (Vec3, Vec3) {
+    fn compute_forces_and_moments(&mut self, controls: &ControlOutputs, dt: f64) -> (Vec3, Vec3) {
         let mut total_forces = AeroForces::zero();
         
         let airspeed = self.state.velocity.magnitude();
@@ -105,13 +116,15 @@ impl Aircraft {
         total_forces.add(&wing_forces);
         
         let mut applied_forces = Vec::new();
-        let mut total_vtol_thrust = 0.0;
-        let mut total_cruise_thrust = 0.0;
+    let mut total_vtol_thrust = 0.0;
+    let mut total_cruise_thrust = 0.0;
+    let mut mech_power_w = 0.0;
         
-        for (i, mount) in self.config.vtol_props.iter().enumerate() {
+    let thrust_headroom = 2.0; // allow up to 2x weight if commanded
+    for (i, mount) in self.config.vtol_props.iter().enumerate() {
             if i < controls.thrust_vtol.len() {
-                let thrust_per_motor = self.body.mass * 9.81 / self.config.vtol_props.len() as f64;
-                let thrust_magnitude = controls.thrust_vtol[i] * thrust_per_motor;
+        let thrust_per_motor = thrust_headroom * self.body.mass * 9.81 / self.config.vtol_props.len() as f64;
+        let thrust_magnitude = (controls.thrust_vtol[i] * self.thrust_ramp) * thrust_per_motor;
                 
                 let rpm = 2000.0 + controls.thrust_vtol[i] * 1000.0;
                 let _prop_thrust = mount.propeller.compute_thrust(
@@ -119,6 +132,22 @@ impl Aircraft {
                     self.state.velocity.dot(&mount.direction),
                     self.atmosphere.density
                 );
+                // Mechanical power via momentum theory
+                let axial = self.state.velocity.dot(&mount.direction).max(0.0);
+                let area = std::f64::consts::PI * (mount.propeller.diameter * 0.5).powi(2);
+                let rho = self.atmosphere.density;
+                let vi = if thrust_magnitude <= 0.0 {
+                    0.0
+                } else if axial.abs() < 1e-6 {
+                    (thrust_magnitude / (2.0 * rho * area)).sqrt()
+                } else {
+                    let v_half = axial / 2.0;
+                    let disc = v_half * v_half + thrust_magnitude / (rho * area);
+                    if disc > 0.0 { disc.sqrt() - v_half } else { 0.0 }
+                };
+                let fom = mount.propeller.figure_of_merit.max(0.3);
+                let p_motor = thrust_magnitude * (axial + vi) / fom;
+                mech_power_w += p_motor.max(0.0);
                 
                 total_vtol_thrust += thrust_magnitude;
                 
@@ -129,7 +158,7 @@ impl Aircraft {
         }
         
         for mount in &self.config.cruise_props {
-            let thrust_magnitude = controls.thrust_cruise * self.body.mass * 9.81;
+            let thrust_magnitude = (controls.thrust_cruise * self.thrust_ramp) * thrust_headroom * self.body.mass * 9.81;
             
             let rpm = 1500.0 + controls.thrust_cruise * 2000.0;
             let _prop_thrust = mount.propeller.compute_thrust(
@@ -137,6 +166,21 @@ impl Aircraft {
                 self.state.velocity.dot(&mount.direction),
                 self.atmosphere.density
             );
+            let axial = self.state.velocity.dot(&mount.direction).max(0.0);
+            let area = std::f64::consts::PI * (mount.propeller.diameter * 0.5).powi(2);
+            let rho = self.atmosphere.density;
+            let vi = if thrust_magnitude <= 0.0 {
+                0.0
+            } else if axial.abs() < 1e-6 {
+                (thrust_magnitude / (2.0 * rho * area)).sqrt()
+            } else {
+                let v_half = axial / 2.0;
+                let disc = v_half * v_half + thrust_magnitude / (rho * area);
+                if disc > 0.0 { disc.sqrt() - v_half } else { 0.0 }
+            };
+            let fom = mount.propeller.figure_of_merit.max(0.3);
+            let p_motor = thrust_magnitude * (axial + vi) / fom;
+            mech_power_w += p_motor.max(0.0);
             
             total_cruise_thrust += thrust_magnitude;
             
@@ -144,6 +188,44 @@ impl Aircraft {
             applied_forces.push((thrust_vector, mount.position));
         }
         
+        // Cap total VTOL+cruise thrust to avoid runaway acceleration
+        let max_total_thrust = 1.3 * self.body.mass * 9.81;
+        let total_thrust_cmd = total_vtol_thrust + total_cruise_thrust;
+        if total_thrust_cmd > max_total_thrust {
+            let cap_scale = (max_total_thrust / total_thrust_cmd).clamp(0.0, 1.0);
+            total_vtol_thrust *= cap_scale;
+            total_cruise_thrust *= cap_scale;
+            // Scale all thrust forces (applied_forces before aero push is thrust only)
+            for f in applied_forces.iter_mut() {
+                // aero force is added later, so current entries are thrust; they will all be scaled here
+                f.0 = f.0 * cap_scale;
+            }
+            // Scale power consistently
+            mech_power_w *= cap_scale;
+        }
+
+        // Compute battery power delivery
+        let eff = self.battery.cfg.motor_efficiency.max(0.1).min(1.0);
+        let p_req = mech_power_w / eff;
+    let (p_deliv, _v_bus, _i_bus) = self.battery.limit_electrical_power(p_req);
+        // Optionally scale thrusts if power-limited
+        let mut scale = 1.0;
+        if self.battery.cfg.limit_thrust {
+            scale = if p_req > 1e-6 { (p_deliv * eff / mech_power_w).clamp(0.0, 1.0) } else { 1.0 };
+            if scale < 0.9999 {
+                total_vtol_thrust *= scale;
+                total_cruise_thrust *= scale;
+                for f in applied_forces.iter_mut() {
+                    f.0 = f.0 * scale;
+                }
+            }
+        }
+
+        // Draw energy
+        self.battery.draw_electrical_power(p_deliv, dt);
+        self.last_power = self.battery.telemetry.clone();
+    self.last_power.power_limited = self.battery.cfg.limit_thrust && scale < 0.9999;
+
         self.last_forces.total_thrust_vtol = total_vtol_thrust;
         self.last_forces.total_thrust_cruise = total_cruise_thrust;
         self.last_forces.aero_force = total_forces.total_force();
@@ -178,6 +260,7 @@ impl Aircraft {
             airspeed,
             altitude: -self.state.position.z,  // Convert NED Z to altitude (negative Z is up)
             forces: self.last_forces.clone(),
+            power: self.last_power.clone(),
         }
     }
 }
@@ -191,4 +274,5 @@ pub struct AircraftTelemetry {
     pub airspeed: f64,
     pub altitude: f64,
     pub forces: ForcesTelemetry,
+    pub power: PowerTelemetry,
 }

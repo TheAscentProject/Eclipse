@@ -23,7 +23,6 @@ The simulator has a fully implemented modular architecture with advanced flight 
 - Control gain tuning for stable hover and transition
 - Extended flight envelope testing
 - Wind and turbulence models
-- Battery and power consumption tracking
 
 ## Architecture
 
@@ -77,6 +76,12 @@ cargo run --release -- --tiltrotor --hover
 cargo run --release -- --help
 ```
 
+During runs, the status line shows power metrics:
+
+```
+t=  12.0s | Alt=  25.4m | Vel=  3.1m/s | Thrust=  982N | V=22.8V I=45.2A P=1029W SoC= 78%
+```
+
 ### Flight Modes
 
 - `--hover`: Maintain stable position at 5m altitude (default)
@@ -93,6 +98,7 @@ Each CSV contains:
 - Time, position (x,y,z), velocity (vx,vy,vz)
 - Attitude (roll,pitch,yaw), angular rates (wx,wy,wz)
 - Airspeed, altitude, control outputs
+ - Power: `voltage`, `current`, `power_w`, `energy_wh`, `soc`, `time_remaining_s`
 
 ## Repository Structure
 
@@ -141,6 +147,18 @@ src/
 - Propeller momentum theory for hover
 - Blade element theory for forward flight
 
+### Power & Battery Model
+
+- LiPo-style battery model with configurable pack:
+    - `capacity_mah`, `cells`, `c_rating`
+    - `internal_resistance_mohm_per_cell`, `cutoff_per_cell_v`
+    - Default is a 6S 10,000 mAh pack with moderate IR
+- Voltage sag computed from open-circuit voltage minus I·R drop
+- Discharge curve approximates flat mid-SoC and knees at ends
+- Instantaneous power draw derived from motor thrust demand; electrical draw accounts for efficiency
+- Thrust is scaled when power is limited by voltage sag, current limit, or cutoff
+- Simulation ends cleanly when the pack is depleted (voltage below cutoff or energy exhausted)
+
 ### Control Philosophy
 - Single coherent control system with mode adaptation
 - No hard switching between control laws
@@ -188,6 +206,27 @@ cargo build --release
 # Run with debug output
 RUST_LOG=debug cargo run
 ```
+
+## Battery Configuration
+
+Battery parameters live in the aircraft config. Defaults are provided for built-in configurations. To tweak the pack, edit `src/config/aircraft.rs` and adjust the `battery` field on `AircraftConfig` (e.g., capacity, cells, C-rating). Example snippet:
+
+```rust
+Self {
+    battery: crate::power::BatteryConfig {
+        capacity_mah: 8000.0,
+        cells: 6,
+        c_rating: 25.0,
+        internal_resistance_mohm_per_cell: 2.0,
+        cutoff_per_cell_v: 3.2,
+        nominal_cell_v: 3.7,
+        full_cell_v: 4.2,
+        motor_efficiency: 0.9,
+    },
+}
+```
+
+Telemetry now includes energy and remaining time estimates for quick flight-time checks.
 
 ## Sponsorship
 

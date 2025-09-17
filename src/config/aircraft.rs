@@ -1,4 +1,5 @@
 use crate::aero::{Wing, Propeller};
+use crate::power::BatteryConfig;
 use crate::physics::RigidBody;
 use crate::math::Vec3;
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,7 @@ pub struct AircraftConfig {
     pub vtol_props: Vec<PropellerMount>,
     pub cruise_props: Vec<PropellerMount>,
     pub cg_position: Vec3,
+    pub battery: BatteryConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,6 +74,7 @@ impl AircraftConfig {
             vtol_props,
             cruise_props: vec![],
             cg_position: Vec3::zero(),
+            battery: BatteryConfig::default(),
         }
     }
 
@@ -135,6 +138,7 @@ impl AircraftConfig {
             vtol_props,
             cruise_props,
             cg_position: Vec3::zero(),
+            battery: BatteryConfig::default(),
         }
     }
 
