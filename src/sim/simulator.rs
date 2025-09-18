@@ -87,6 +87,12 @@ impl Simulator {
         let telemetry = self.aircraft.get_telemetry();
         self.telemetry_log.push((self.time, telemetry.clone()));
         
+        if telemetry.power.depleted {
+            println!("\nEND: Battery depleted");
+            self.running = false;
+            return false;
+        }
+
         if self.time.fract() < self.config.dt {
             self.print_status(&telemetry);
         }
@@ -129,11 +135,16 @@ impl Simulator {
     fn print_status(&self, telemetry: &crate::sim::aircraft::AircraftTelemetry) {
         // Clear previous line and print clean status
         print!("\r\x1B[K"); // Clear line
-        print!("t={:6.1}s | Alt={:6.1}m | Vel={:5.1}m/s | Thrust={:5.0}N", 
+        print!("t={:6.1}s | Alt={:6.1}m | Vel={:5.1}m/s | Thrust={:5.0}N | V={:4.1}V I={:4.1}A P={:5.0}W SoC={:3.0}%{}", 
             self.time,
             telemetry.altitude,
             telemetry.airspeed,
-            telemetry.forces.total_thrust_vtol
+            telemetry.forces.total_thrust_vtol,
+            telemetry.power.bus_voltage_v,
+            telemetry.power.bus_current_a,
+            telemetry.power.electrical_power_w,
+            telemetry.power.soc * 100.0,
+            if telemetry.power.power_limited { " [PWR-LIM]" } else { "" }
         );
         
         // Add stability indicator
@@ -177,19 +188,22 @@ impl Simulator {
         }
         
         let mut file = File::create(current_path + filename)?;
-        writeln!(file, "time,x,y,z,vx,vy,vz,roll,pitch,yaw,wx,wy,wz,airspeed,altitude")?;
+    writeln!(file, "time,x,y,z,vx,vy,vz,roll,pitch,yaw,wx,wy,wz,airspeed,altitude,voltage,current,power_w,energy_wh,soc,time_remaining_s")?;
         
         for (time, telem) in &self.telemetry_log {
             let (roll, pitch, yaw) = telem.attitude;
             writeln!(
                 file,
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
                 time,
                 telem.position.x, telem.position.y, telem.position.z,
                 telem.velocity.x, telem.velocity.y, telem.velocity.z,
                 roll, pitch, yaw,
                 telem.angular_velocity.x, telem.angular_velocity.y, telem.angular_velocity.z,
-                telem.airspeed, telem.altitude
+                telem.airspeed, telem.altitude,
+                telem.power.bus_voltage_v, telem.power.bus_current_a,
+                telem.power.electrical_power_w, telem.power.energy_used_wh,
+                telem.power.soc, telem.power.time_remaining_s
             )?;
         }
         
